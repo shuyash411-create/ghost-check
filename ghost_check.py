@@ -200,16 +200,19 @@ def load(path: Path, mode: str, dayfirst: bool | None, by_page: bool) -> tuple[l
     """Load any supported file. Returns (records, detected mode)."""
     if path.suffix.lower() == ".pdf":
         pages = read_pdf_pages(path)
-        text = "\n".join(pages)
     else:
-        text = read_text_file(path)
-        pages = [text]
+        pages = [read_text_file(path)]
+    return load_text(pages, path.name, mode, dayfirst, by_page)
 
+
+def load_text(pages: list[str], source: str, mode: str, dayfirst: bool | None,
+              by_page: bool) -> tuple[list[Record], str]:
+    """Parse already-extracted text as a chat or a document. Returns (records, mode)."""
     if mode in ("auto", "chat"):
-        chat = parse_whatsapp(text, path.name, dayfirst)
+        chat = parse_whatsapp("\n".join(pages), source, dayfirst)
         if mode == "chat" or len(chat) >= 3:
             return chat, "chat"
-    return parse_document(pages, path.name, by_page), "document"
+    return parse_document(pages, source, by_page), "document"
 
 
 # --------------------------------------------------------------------------

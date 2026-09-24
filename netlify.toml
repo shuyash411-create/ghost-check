@@ -1,6 +1,12 @@
-# ghost-check is a Python CLI, not a web app. Netlify publishes a live demo:
-# the HTML report generated from the bundled sample chat.
-# Settings here override the build command / publish directory set in the Netlify UI.
+# ghost-check web app: a static site in web/. All scoring runs in the browser
+# (web/ghost-check.js), so there is nothing to build. These settings override
+# the build command / publish directory set in the Netlify UI.
 [build]
-  command = "mkdir -p site && python ghost_check.py examples/sample_chat.txt -o site/index.html"
-  publish = "site"
+  command = "echo 'static site, nothing to build'"
+  publish = "web"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "no-referrer"

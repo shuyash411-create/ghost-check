@@ -1,9 +1,15 @@
 # ghost-check
 
-A single-file Python CLI that estimates how "AI-written" each person's messages
-look in a **WhatsApp chat export**, or each file or page of a **PDF**. It writes
-a self-contained HTML report with a bar chart comparing senders and a table per
-sender, sorted by AI-likely %.
+Estimates how "AI-written" text looks. Paste any text, or give it a
+**WhatsApp chat export** or a **PDF**, and it scores each message or passage
+0–100. Chats are compared person by person.
+
+It comes in two forms that share the same scoring:
+
+- **Web app** (`web/`): paste or drop files in the browser and see the result
+  immediately. Everything runs locally in the browser, and nothing is uploaded.
+- **Python CLI** (`ghost_check.py`): scores files from the terminal and writes a
+  self-contained HTML report, with an optional CSV.
 
 > **Heuristic, not proof.** ghost-check measures writing style, not where the
 > text came from. Formal writers, non-native speakers, copy-pasted
@@ -11,7 +17,35 @@ sender, sorted by AI-likely %.
 > Treat a high score as a reason to look closer, never as evidence against
 > someone.
 
-## Install
+## Web app
+
+Open the deployed site, or run it locally:
+
+```bash
+cd web && python3 -m http.server 8000   # then open http://localhost:8000
+```
+
+1. **Paste text** (an essay, an email, or a copied WhatsApp chat), or switch to
+   **Upload files** and drop a WhatsApp `.txt`/`.zip` export, a PDF, or any
+   `.txt`/`.md` file. You can add several files and compare them.
+2. Click **Check for AI**.
+3. For a single text you get an overall score, a verdict (likely human / mixed /
+   likely AI), and a breakdown of which signals drove it. For a chat or several
+   files you get a chart comparing people, plus each person's messages sorted
+   by score.
+
+**Options** lets you change the AI-likely threshold, the minimum length for a
+message to be scored, force chat or document mode, or score each PDF page
+separately.
+
+Files are read in your browser: PDFs with [pdf.js](https://mozilla.github.io/pdf.js/),
+zips with [JSZip](https://stuk.github.io/jszip/). Both are vendored in
+`web/vendor/` with their licenses. Scanned PDFs have no text layer, so they need OCR first.
+
+**Deploying:** `netlify.toml` publishes `web/` as a static site with no build
+step. Any static host works.
+
+## Install (CLI)
 
 Needs Python 3.9+.
 
@@ -125,6 +159,15 @@ deleted messages and system notices ("X joined", encryption notice) are dropped.
 
 Day/month order is detected from the file. If every date is ambiguous
 (day ≤ 12), day-first is assumed. Use `--monthfirst` for US-style exports.
+
+## Development
+
+`web/ghost-check.js` is a port of the parsing and scoring in `ghost_check.py`.
+After changing either one, check they still agree (this needs Node.js):
+
+```bash
+python tests/check_parity.py
+```
 
 ## Limitations
 
