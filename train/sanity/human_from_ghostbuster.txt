@@ -1,0 +1,11 @@
+# Human sanity-check documents loaded from a Ghostbuster checkout at run time
+# (not redistributed here: BAWE and ETS/TOEFL11 are licensed corpora).
+# All are in ghost-check's held-out test split. Each is cut to its first ~900 words.
+other/bawe/366.txt
+other/bawe/318.txt
+other/bawe/133.txt
+other/bawe/647.txt
+other/bawe/1301.txt
+other/bawe/1371.txt
+other/ets/408.txt
+other/ets/245.txt

@@ -1,0 +1,15 @@
+Case Study Analysis: Remote Work at Northbridge Consulting
+
+Northbridge Consulting, a mid-sized firm of around 400 employees, moved to a fully remote model during 2020 and has since adopted a hybrid policy requiring staff to attend the office two days per week. This analysis applies concepts from organisational behaviour to evaluate the effects of this transition and to recommend improvements.
+
+Productivity and performance
+Initial internal data showed that billable hours remained stable after the move to remote work, which suggests that individual productivity did not decline. However, managers reported that junior consultants took longer to reach full productivity, as they had fewer opportunities to learn informally by observing senior colleagues. This is consistent with research on tacit knowledge, which is difficult to transfer through scheduled video calls.
+
+Communication and culture
+Employee surveys revealed a drop in perceived connection to the company and to colleagues outside immediate project teams. Using Schein's model of organisational culture, it could be argued that the visible artefacts of Northbridge's culture, such as shared lunches and office events, disappeared, and that shared assumptions about collaboration weakened as a result. The hybrid policy has partially restored this, but attendance on office days is uneven, which limits its benefits.
+
+Employee wellbeing
+Staff valued the flexibility of remote work, particularly those with caring responsibilities. At the same time, many reported difficulty separating work from home life, leading to longer working hours and signs of burnout. This reflects the boundary theory perspective, which suggests that some individuals prefer strong separation between roles.
+
+Recommendations
+First, Northbridge should coordinate office days by team so that attendance produces genuine collaboration rather than people sitting on video calls from the office. Second, the firm should introduce a structured mentoring programme for junior staff to replace some of the informal learning that was lost. Third, clear norms around response times and working hours would help protect employee wellbeing. Finally, the firm should continue to measure engagement and retention, as these are likely to be the most important long-term indicators of whether the hybrid model is successful.

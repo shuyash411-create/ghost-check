@@ -22,9 +22,9 @@ from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import StratifiedKFold
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "web"))
 import evaluate as ev  # noqa: E402
-import ghost_check as gc  # noqa: E402
+import heuristic as gc  # noqa: E402
 
 
 def fit(X, y, w, l2=0.002):

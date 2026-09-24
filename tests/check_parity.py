@@ -14,8 +14,8 @@ from pathlib import Path
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
-import ghost_check as gc  # noqa: E402
+sys.path.insert(0, str(ROOT / "web"))
+import heuristic as gc  # noqa: E402
 
 FIELDS = ["words", "sentences", *gc.FEATURES, "score", "verdict"]
 SUMMARY = ["messages_judged", "likely_ai", "some_signs", "avg_score", "total_words", "verdict"]

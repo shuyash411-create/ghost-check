@@ -1,0 +1,4 @@
+# Training and evaluation (train/), on top of ../requirements.txt
+pandas>=2.0
+reportlab>=4.0      # sanity check builds real PDFs
+anthropic>=1.0      # generate_claude.py only

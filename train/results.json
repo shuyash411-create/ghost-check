@@ -1,0 +1,216 @@
+{
+  "model": {
+    "type": "TF-IDF (word 1-2g + char 3-5g) + logistic regression",
+    "C": 32.0,
+    "features": 270000,
+    "sklearn": "1.9.1",
+    "threshold_likely": 0.39581319565940715,
+    "threshold_possible": 0.2109170623502691
+  },
+  "data": {
+    "train_chunks": 58371,
+    "val_chunks": 12939,
+    "test_chunks": 12460,
+    "train_docs": 18424,
+    "test_docs": 3947,
+    "test_docs_human": 1410,
+    "test_docs_ai": 2537
+  },
+  "test_documents": {
+    "at_0.5": {
+      "n": 3947,
+      "n_human": 1410,
+      "n_ai": 2537,
+      "accuracy": 0.9954395743602736,
+      "false_positive_rate": 0.0035460992907801418,
+      "false_negative_rate": 0.005124162396531336,
+      "auc": 0.9997741231196728
+    },
+    "at_likely": {
+      "n": 3947,
+      "n_human": 1410,
+      "n_ai": 2537,
+      "accuracy": 0.9946795034203192,
+      "false_positive_rate": 0.009929078014184398,
+      "false_negative_rate": 0.0027591643673630273,
+      "auc": 0.9997741231196728
+    },
+    "at_possible": {
+      "n": 3947,
+      "n_human": 1410,
+      "n_ai": 2537,
+      "accuracy": 0.9746643020015201,
+      "false_positive_rate": 0.06950354609929078,
+      "false_negative_rate": 0.0007883326763894363,
+      "auc": 0.9997741231196728
+    }
+  },
+  "test_chunks": {
+    "at_0.5": {
+      "n": 12460,
+      "n_human": 4362,
+      "n_ai": 8098,
+      "accuracy": 0.980016051364366,
+      "false_positive_rate": 0.02888583218707015,
+      "false_negative_rate": 0.015188935539639417,
+      "auc": 0.998099196126678
+    },
+    "at_likely": {
+      "n": 12460,
+      "n_human": 4362,
+      "n_ai": 8098,
+      "accuracy": 0.9792134831460674,
+      "false_positive_rate": 0.038743695552498854,
+      "false_negative_rate": 0.01111385527290689,
+      "auc": 0.998099196126678
+    }
+  },
+  "test_by_source": {
+    "ai-argugpt (gpt-3.5-turbo)": {
+      "docs": 115,
+      "flag_rate_likely": 1.0,
+      "flag_rate_possible": 1.0,
+      "flag_rate_0.5": 1.0
+    },
+    "ai-argugpt (text-davinci-002)": {
+      "docs": 61,
+      "flag_rate_likely": 0.9836065573770492,
+      "flag_rate_possible": 0.9836065573770492,
+      "flag_rate_0.5": 0.9836065573770492
+    },
+    "ai-argugpt (text-davinci-003)": {
+      "docs": 112,
+      "flag_rate_likely": 0.9910714285714286,
+      "flag_rate_possible": 1.0,
+      "flag_rate_0.5": 0.9910714285714286
+    },
+    "essay-claude": {
+      "docs": 467,
+      "flag_rate_likely": 0.9935760171306209,
+      "flag_rate_possible": 0.9978586723768736,
+      "flag_rate_0.5": 0.9914346895074947
+    },
+    "essay-gpt": {
+      "docs": 771,
+      "flag_rate_likely": 1.0,
+      "flag_rate_possible": 1.0,
+      "flag_rate_0.5": 1.0
+    },
+    "essay-human": {
+      "docs": 466,
+      "flag_rate_likely": 0.015021459227467811,
+      "flag_rate_possible": 0.10944206008583691,
+      "flag_rate_0.5": 0.006437768240343348
+    },
+    "human-bawe (UK university assignments)": {
+      "docs": 219,
+      "flag_rate_likely": 0.0,
+      "flag_rate_possible": 0.0319634703196347,
+      "flag_rate_0.5": 0.0
+    },
+    "human-ets (non-native, TOEFL)": {
+      "docs": 143,
+      "flag_rate_likely": 0.006993006993006993,
+      "flag_rate_possible": 0.055944055944055944,
+      "flag_rate_0.5": 0.0
+    },
+    "human-pelic (non-native learners)": {
+      "docs": 155,
+      "flag_rate_likely": 0.025806451612903226,
+      "flag_rate_possible": 0.05161290322580645,
+      "flag_rate_0.5": 0.012903225806451613
+    },
+    "reuter-claude": {
+      "docs": 427,
+      "flag_rate_likely": 0.9976580796252927,
+      "flag_rate_possible": 1.0,
+      "flag_rate_0.5": 0.9882903981264637
+    },
+    "reuter-gpt": {
+      "docs": 584,
+      "flag_rate_likely": 0.9982876712328768,
+      "flag_rate_possible": 1.0,
+      "flag_rate_0.5": 0.9965753424657534
+    },
+    "reuter-human": {
+      "docs": 427,
+      "flag_rate_likely": 0.00468384074941452,
+      "flag_rate_possible": 0.05620608899297424,
+      "flag_rate_0.5": 0.0
+    }
+  },
+  "ood_by_source": {
+    "ai-argugpt (bloomz-7b)": {
+      "docs": 100,
+      "label": 1,
+      "flag_rate_likely": 0.25,
+      "flag_rate_possible": 0.42,
+      "flag_rate_0.5": 0.25,
+      "median_score": 0.12961348205232806
+    },
+    "ai-argugpt (claude-instant)": {
+      "docs": 100,
+      "label": 1,
+      "flag_rate_likely": 1.0,
+      "flag_rate_possible": 1.0,
+      "flag_rate_0.5": 0.99,
+      "median_score": 0.9985844813461273
+    },
+    "ai-argugpt (flan-t5-11b)": {
+      "docs": 100,
+      "label": 1,
+      "flag_rate_likely": 0.36,
+      "flag_rate_possible": 0.57,
+      "flag_rate_0.5": 0.27,
+      "median_score": 0.281209985279952
+    },
+    "ai-argugpt (gpt4)": {
+      "docs": 100,
+      "label": 1,
+      "flag_rate_likely": 1.0,
+      "flag_rate_possible": 1.0,
+      "flag_rate_0.5": 0.99,
+      "median_score": 0.9966670835085749
+    },
+    "ai-claude-samples (essays/emails, short)": {
+      "docs": 33,
+      "label": 1,
+      "flag_rate_likely": 0.7878787878787878,
+      "flag_rate_possible": 0.8181818181818182,
+      "flag_rate_0.5": 0.7878787878787878,
+      "median_score": 0.9715445631176504
+    },
+    "ai-undetectable (humanised AI)": {
+      "docs": 100,
+      "label": 1,
+      "flag_rate_likely": 0.85,
+      "flag_rate_possible": 0.9,
+      "flag_rate_0.5": 0.82,
+      "median_score": 0.9801472654187862
+    },
+    "human-brown-1961 (published prose)": {
+      "docs": 374,
+      "label": 0,
+      "flag_rate_likely": 0.00267379679144385,
+      "flag_rate_possible": 0.02406417112299465,
+      "flag_rate_0.5": 0.0,
+      "median_score": 0.0014463793781148496
+    },
+    "human-lang8 (non-native learners)": {
+      "docs": 300,
+      "label": 0,
+      "flag_rate_likely": 0.0033333333333333335,
+      "flag_rate_possible": 0.013333333333333334,
+      "flag_rate_0.5": 0.0,
+      "median_score": 0.0005151737475874802
+    },
+    "human-toefl91 (non-native)": {
+      "docs": 91,
+      "label": 0,
+      "flag_rate_likely": 0.04395604395604396,
+      "flag_rate_possible": 0.04395604395604396,
+      "flag_rate_0.5": 0.04395604395604396,
+      "median_score": 0.0017800930909979689
+    }
+  }
+}

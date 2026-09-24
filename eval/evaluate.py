@@ -31,8 +31,8 @@ from pathlib import Path
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
-import ghost_check as gc  # noqa: E402
+sys.path.insert(0, str(ROOT / "web"))
+import heuristic as gc  # noqa: E402
 
 CACHE = Path(__file__).resolve().parent / ".cache"
 NLTK = "https://raw.githubusercontent.com/nltk/nltk_data/gh-pages/packages/corpora/{}.zip"

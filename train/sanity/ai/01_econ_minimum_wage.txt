@@ -1,0 +1,11 @@
+Minimum Wage Increases and Employment: An Evaluation of the Evidence
+
+The question of whether raising the minimum wage reduces employment has been one of the most contested debates in labour economics. The standard competitive model predicts that a wage floor set above the market-clearing level will reduce the quantity of labour demanded, leading to job losses concentrated among low-skilled and young workers. However, empirical research over the past three decades has complicated this prediction considerably.
+
+The landmark study by Card and Krueger (1994) compared fast-food restaurants in New Jersey, which raised its minimum wage, with those in neighbouring Pennsylvania, which did not. They found no evidence of reduced employment and, in some specifications, a small increase. This finding challenged the conventional view and prompted a wave of subsequent research. Critics argued that the data collection method, which relied on telephone surveys, introduced measurement error, and a re-analysis using payroll records by Neumark and Wascher (2000) reached the opposite conclusion.
+
+More recent studies using administrative data and improved econometric techniques tend to find that moderate increases have small or negligible employment effects. One explanation is monopsony power: when employers have wage-setting power, a minimum wage can raise both wages and employment up to a point. Another is that firms adjust through channels other than headcount, such as reduced hours, lower turnover costs, or modest price increases.
+
+Nevertheless, it would be a mistake to conclude that minimum wages have no limit. Evidence from large increases, such as Seattle's move towards a fifteen-dollar minimum, suggests that hours worked by low-wage employees may fall even when employment counts remain stable. The effect also likely depends on local labour market conditions, with a given nominal wage floor being more binding in lower-cost regions.
+
+In conclusion, the evidence suggests that the employment effects of minimum wage increases are smaller than the simple competitive model predicts, but they are not zero, and they depend on the size of the increase relative to local median wages. Policymakers should therefore consider indexing minimum wages to regional conditions rather than applying a single national figure.
