@@ -17,7 +17,8 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 import ghost_check as gc  # noqa: E402
 
-FIELDS = ["words", "sentences", *gc.WEIGHTS, "score"]
+FIELDS = ["words", "sentences", *gc.FEATURES, "score", "verdict"]
+SUMMARY = ["messages_judged", "likely_ai", "some_signs", "avg_score", "total_words", "verdict"]
 
 SAMPLES = {
     "sample_chat.txt": (ROOT / "examples" / "sample_chat.txt").read_text(encoding="utf-8"),
@@ -36,6 +37,7 @@ SAMPLES = {
         "[1/25/24, 9:09:00 PM] Kim: Rest assured, I will arrive on time. Feel free to reach out.\n"
         "multi-line continuation with a second line\n"
     ),
+    "ai_samples.txt": (ROOT / "eval" / "ai_samples.txt").read_text(encoding="utf-8"),
     "hindi.txt": "मैं कल बाज़ार गया था। वहाँ बहुत भीड़ थी। फिर हम घर वापस आ गए और खाना खाया।",
 }
 
@@ -45,26 +47,26 @@ const samples = JSON.parse(require("fs").readFileSync(0, "utf8"));
 const out = {};
 for (const [name, text] of Object.entries(samples)) {
   const { records, mode } = GC.load([text], name);
-  GC.scoreRecords(records, 6);
-  out[name] = { mode, rows: records.map((r) => ({ sender: r.sender, message: r.message,
-    ...Object.fromEntries(%s.map((k) => [k, Number.isNaN(r[k]) ? null : r[k]])) })) };
+  GC.scoreRecords(records);
+  const val = (v) => (typeof v === "number" && Number.isNaN(v) ? null : v);
+  out[name] = { mode,
+    rows: records.map((r) => ({ sender: r.sender, message: r.message, ...Object.fromEntries(%s.map((k) => [k, val(r[k])])) })),
+    summary: GC.summarize(records).map((s) => ({ sender: s.sender, ...Object.fromEntries(%s.map((k) => [k, val(s[k])])) })) };
 }
 process.stdout.write(JSON.stringify(out));
-""" % json.dumps(FIELDS)
+""" % (json.dumps(FIELDS), json.dumps(SUMMARY))
 
 
 def python_rows(name, text):
     recs, mode = gc.load_text([text], name, "auto", None, False)
     df = pd.DataFrame([r.__dict__ for r in recs])
-    df = gc.score_frame(df, 6)
-    rows = []
-    for _, r in df.iterrows():
-        row = {"sender": r.sender, "message": r.message}
-        for k in FIELDS:
-            v = r[k]
-            row[k] = None if pd.isna(v) else float(v)
-        rows.append(row)
-    return mode, rows
+    df = gc.score_frame(df)
+    conv = lambda v: None if not isinstance(v, str) and pd.isna(v) else (v if isinstance(v, str) else float(v))
+    rows = [{"sender": r["sender"], "message": r["message"], **{k: conv(r[k]) for k in FIELDS}}
+            for r in df.to_dict("records")]
+    summary = [{"sender": sender, **{k: conv(r[k]) for k in SUMMARY}}
+               for sender, r in gc.summarize(df).iterrows()]
+    return mode, rows, summary
 
 
 def main() -> int:
@@ -75,18 +77,23 @@ def main() -> int:
     js_out = json.loads(js.stdout)
     failures = 0
     for name, text in SAMPLES.items():
-        mode, py = python_rows(name, text)
+        mode, py, py_sum = python_rows(name, text)
         jr = js_out[name]
         if mode != jr["mode"] or len(py) != len(jr["rows"]):
             print(f"FAIL {name}: mode/records differ: py={mode}/{len(py)} js={jr['mode']}/{len(jr['rows'])}")
             failures += 1
             continue
-        for i, (a, b) in enumerate(zip(py, jr["rows"])):
-            for k in ["sender", "message", *FIELDS]:
+        pairs = [(f"#{i}", a, b, ["sender", "message", *FIELDS]) for i, (a, b) in enumerate(zip(py, jr["rows"]))]
+        if len(py_sum) != len(jr["summary"]):
+            print(f"FAIL {name}: summary length differs")
+            failures += 1
+        pairs += [(f"summary {a['sender']}", a, b, ["sender", *SUMMARY]) for a, b in zip(py_sum, jr["summary"])]
+        for i, a, b, keys in pairs:
+            for k in keys:
                 x, y = a[k], b[k]
                 same = (x == y) if isinstance(x, str) or x is None or y is None else math.isclose(x, y, abs_tol=1e-9)
                 if not same:
-                    print(f"FAIL {name} #{i} {k}: py={x!r} js={y!r}")
+                    print(f"FAIL {name} {i} {k}: py={x!r} js={y!r}")
                     failures += 1
         print(f"ok   {name}: {len(py)} records ({mode} mode)")
     print("PARITY OK" if not failures else f"{failures} mismatches")

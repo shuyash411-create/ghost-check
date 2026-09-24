@@ -156,12 +156,7 @@ Honestly? Never again. Tomorrow I'm cycling, even if it means getting up at six.
   window.addEventListener("drop", (e) => e.preventDefault());
 
   // ---------------------------------------------------------------- analysis
-  const opts = () => ({
-    threshold: +$("threshold").value,
-    minWords: Math.max(1, +$("minwords").value || 6),
-    mode: $("mode").value,
-    byPage: $("bypage").checked,
-  });
+  const opts = () => ({ mode: $("mode").value, byPage: $("bypage").checked });
 
   function collect() {
     const o = opts();
@@ -196,47 +191,57 @@ Honestly? Never again. Tomorrow I'm cycling, even if it means getting up at six.
   for (const [btn, key] of [["ex-chat", "chat"], ["ex-ai", "ai"], ["ex-human", "human"]]) {
     $(btn).onclick = () => { setTab("text"); $("text").value = EXAMPLES[key]; analyze(); };
   }
-  $("threshold").oninput = () => { $("threshold-v").textContent = $("threshold").value; if (last) render(); };
-  for (const id of ["minwords", "mode", "bypage"]) $(id).onchange = () => { if (last) analyze(); };
+  for (const id of ["mode", "bypage"]) $(id).onchange = () => { if (last) analyze(); };
+  $("acc-link").onclick = () => { $("accuracy").open = true; };
 
   // ---------------------------------------------------------------- rendering
-  const band = (s, t) => (s == null || Number.isNaN(s) ? "na" : s >= t ? "high" : s >= t - 15 ? "mid" : "low");
-  const verdict = (s, t) => ({ high: "Likely AI-written", mid: "Mixed signals", low: "Likely human-written", na: "Not enough text" }[band(s, t)]);
-  const pill = (s, t, text) => `<span class="pill ${band(s, t)}">${text ?? fmt(s)}</span>`;
+  const PILL = { ai: "high", possible: "mid", none: "low", inconclusive: "na", skipped: "na" };
+  const COLOR = { ai: "var(--highink)", possible: "var(--midink)", none: "var(--lowink)", inconclusive: "var(--ink3)" };
+  const pill = (key, text) => `<span class="pill ${PILL[key]}">${esc(text)}</span>`;
   const bar = (v) => `<div class="bar"><i style="width:${Number.isNaN(v) ? 0 : Math.max(0, Math.min(100, v))}%"></i></div>`;
   const anchor = (i) => `sender-${i}`;
+  const dv = (k, v) => GC.displayValue(k, v);
 
-  function dial(score, t) {
+  const EXPLAIN = {
+    ai: "Several strong signs of AI writing. On human writing from before AI chatbots, only about 1% of texts score this high.",
+    possible: "Some features common in AI writing. Formal or polished human writing can look like this too, so read it yourself before concluding anything.",
+    none: "No strong AI signals. This doesn't prove a person wrote it: AI prompted to sound casual, or edited by a person, usually passes.",
+    inconclusive: `Too short to judge. Under ${GC.MIN_VERDICT_WORDS} words there isn't enough evidence either way. Add more text for a verdict.`,
+  };
+  const EXPLAIN_PERSON = {
+    ai: "At least two of this person's messages look likely AI-written.",
+    possible: "One message looks likely AI-written, or several show some signs. Not enough to conclude on its own.",
+    none: "None of this person's longer messages show clear AI signs.",
+    inconclusive: `Messages under ${GC.MIN_VERDICT_WORDS} words can't be judged, and this person has fewer than two longer ones.`,
+  };
+
+  function dial(score, key) {
     const r = 62, c = 2 * Math.PI * r, v = Number.isNaN(score) ? 0 : score / 100;
-    const col = { high: "var(--highink)", mid: "var(--midink)", low: "var(--lowink)", na: "var(--ink3)" }[band(score, t)];
-    return `<div class="dial" role="img" aria-label="AI-likely score ${fmt(score)} out of 100">
+    return `<div class="dial" role="img" aria-label="AI-likelihood score ${fmt(score)} out of 100">
       <svg viewBox="0 0 148 148"><circle cx="74" cy="74" r="${r}" fill="none" stroke="var(--track)" stroke-width="12"/>
-      <circle cx="74" cy="74" r="${r}" fill="none" stroke="${col}" stroke-width="12" stroke-linecap="round"
+      <circle cx="74" cy="74" r="${r}" fill="none" stroke="${COLOR[key]}" stroke-width="12" stroke-linecap="round"
         stroke-dasharray="${(c * v).toFixed(1)} ${c.toFixed(1)}"/></svg>
       <div class="val"><span class="num">${fmt(score)}</span><span class="of">out of 100</span></div></div>`;
   }
 
   function features(row) {
-    return `<div class="feat">${Object.keys(GC.WEIGHTS).map((k) =>
-      `<div class="f"><div class="name">${GC.FEATURE_LABELS[k]}<small>${GC.FEATURE_HELP[k]}</small></div>${bar(100 * row[k])}<div class="v">${fmt(100 * row[k])}</div></div>`).join("")}</div>`;
+    return `<div class="feat">${GC.FEATURES.map((k) =>
+      `<div class="f"><div class="name">${GC.FEATURE_LABELS[k]}<small>${GC.FEATURE_HELP[k]}</small></div>${bar(dv(k, row[k]))}<div class="v">${fmt(dv(k, row[k]))}</div></div>`).join("")}</div>`;
   }
 
-  function messageList(recs, t, isChat, limit) {
-    const shown = recs.slice(0, limit);
-    const items = shown.map((r) => {
+  function messageList(recs, limit) {
+    return recs.slice(0, limit).map((r) => {
       const ts = r.timestamp ? r.timestamp.toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "";
-      const meta = Object.keys(GC.WEIGHTS).map((k) => `<span>${GC.FEATURE_LABELS[k]} <b>${fmt(100 * r[k])}</b></span>`).join("");
-      return `<li class="msg">${pill(r.score, t)}<div><div class="text">${esc(r.message)}</div>
-        <div class="meta">${ts ? `<span>${esc(ts)}</span>` : ""}<span>${r.words} words</span>${meta}</div></div></li>`;
-    });
-    return items.join("");
+      const meta = GC.FEATURES.map((k) => `<span>${GC.FEATURE_LABELS[k]} <b>${fmt(dv(k, r[k]))}</b></span>`).join("");
+      return `<li class="msg">${pill(r.verdict, fmt(r.score))}<div><div class="text">${esc(r.message)}</div>
+        <div class="meta"><span><b>${esc(r.verdict_label)}</b></span>${ts ? `<span>${esc(ts)}</span>` : ""}<span>${r.words} words</span>${meta}</div></div></li>`;
+    }).join("");
   }
 
   function render() {
-    const t = opts().threshold;
     const { records, modes } = last;
-    GC.scoreRecords(records, opts().minWords);
-    const summary = GC.summarize(records, t);
+    GC.scoreRecords(records);
+    const summary = GC.summarize(records);
     const scored = records.filter((r) => r.scored);
     const isChat = modes.some((m) => m.mode === "chat");
     const unit = isChat ? "messages" : "passages";
@@ -247,51 +252,56 @@ Honestly? Never again. Tomorrow I'm cycling, even if it means getting up at six.
     setStatus("");
 
     if (!scored.length) {
-      $("results").innerHTML = `<div class="card"><h2>Not enough text</h2><p class="muted">Nothing was long enough to score.
-        Each ${unit.slice(0, -1)} needs at least ${opts().minWords} words. Add more text, or lower the limit under Options.</p>
-        <p class="note">${detected}</p></div>`;
+      $("results").innerHTML = `<div class="card"><h2>Too short to judge</h2><p class="muted">There isn't enough text here to say anything.
+        A verdict needs at least ${GC.MIN_VERDICT_WORDS} words. Add more text and try again.</p><p class="note">${detected}</p></div>`;
       return;
     }
 
     let html = "";
     if (summary.length === 1) {
       const s = summary[0];
-      html += `<div class="card"><div class="hero">${dial(s.avg_score, t)}<div>
-        <p class="muted small" style="margin:0">AI-likely score</p>
-        <p class="verdict">${verdict(s.avg_score, t)}</p>
-        <div class="stats"><span><b>${fmt(s.ai_likely_pct)}%</b> of ${unit} score ≥ ${t}</span>
-          <span><b>${s.messages_scored}</b> ${unit} scored${s.messages_total > s.messages_scored ? ` (${s.messages_total - s.messages_scored} too short)` : ""}</span>
-          <span><b>${fmt(s.avg_words)}</b> words each on average</span></div>
+      // A document is judged as a whole; a chat sender by their individual messages.
+      const v = { key: s.verdict, label: s.verdict_label };
+      const why = isChat ? EXPLAIN_PERSON[v.key] : EXPLAIN[v.key];
+      const parts = !isChat && s.messages_scored > 1
+        ? `<span><b>${s.likely_ai}</b> of ${s.messages_judged} ${unit} look likely AI</span>` : "";
+      html += `<div class="card"><div class="hero">${dial(s.avg_score, v.key)}<div>
+        <p class="muted small" style="margin:0">AI-likelihood score</p>
+        <p class="verdict">${esc(v.label)}</p>
+        <div class="stats"><span><b>${s.total_words}</b> words analysed</span>${parts}
+          ${isChat ? `<span><b>${s.likely_ai}</b> of ${s.messages_judged} longer messages look likely AI</span>` : ""}</div>
         </div></div>
-        <h2 style="margin-top:24px">What drove the score</h2>${features(s)}
-        <p class="note">${detected}</p></div>`;
+        <p class="hint">${why}</p>
+        <h2 style="margin-top:24px">Signals found</h2>${features(s)}
+        <p class="note">${detected}. <a href="#accuracy" class="acc">How accurate is this?</a></p></div>`;
     } else {
+      const L = GC.LIKELY_AI, P = GC.POSSIBLE_AI;
+      const who = isChat ? "Person" : "Section";
       html += `<div class="card"><h2>${isChat ? "Who writes most like AI" : "Which part reads most like AI"}</h2>
-        <p class="muted small" style="margin-top:-6px">Share of each ${isChat ? "person's" : "section's"} ${unit} scoring ≥ ${t}. Click a name for details.</p>
-        <div class="chart">${summary.map((s, i) => `<a class="c" href="#${anchor(i)}" title="${esc(s.sender)}: ${fmt(s.ai_likely_pct)}% AI-likely, average score ${fmt(s.avg_score)}, ${s.messages_scored} ${unit} scored">
-          <span class="who">${esc(s.sender)}</span>${bar(s.ai_likely_pct)}
-          <span class="v"><b>${fmt(s.ai_likely_pct)}%</b> · avg ${fmt(s.avg_score)}</span></a>`).join("")}</div>
-        <div class="scroll" style="margin-top:20px"><table><thead><tr><th>${isChat ? "Person" : "Section"}</th><th class="num">AI-likely</th><th class="num">Avg score</th><th class="num">Scored / total</th>
-          ${Object.keys(GC.WEIGHTS).map((k) => `<th class="num">${GC.FEATURE_LABELS[k]}</th>`).join("")}</tr></thead><tbody>
-          ${summary.map((s, i) => `<tr><td><a href="#${anchor(i)}">${esc(s.sender)}</a></td><td class="num">${pill(s.avg_score, t, `${fmt(s.ai_likely_pct)}%`)}</td>
-            <td class="num">${fmt(s.avg_score)}</td><td class="num">${s.messages_scored} / ${s.messages_total}</td>
-            ${Object.keys(GC.WEIGHTS).map((k) => `<td class="num">${fmt(100 * s[k])}</td>`).join("")}</tr>`).join("")}
+        <p class="muted small" style="margin-top:-6px">Average AI-likelihood score (longer ${unit} count more). Click a name for details.</p>
+        <div class="chart">${summary.map((s, i) => `<a class="c" href="#${anchor(i)}" title="${esc(s.sender)}: ${esc(s.verdict_label)}, average score ${fmt(s.avg_score)}">
+          <span class="who">${esc(s.sender)}</span><div class="track">${bar(s.avg_score)}<span class="mark" style="left:${P}%"></span><span class="mark" style="left:${L}%"></span></div>
+          <span class="v">${pill(s.verdict, s.verdict_label)}</span></a>`).join("")}</div>
+        <p class="legend"><span><i></i>dashed lines: “Some AI signs” at ${P.toFixed(0)}, “Likely AI” at ${L.toFixed(0)}</span></p>
+        <div class="scroll" style="margin-top:16px"><table><thead><tr><th>${who}</th><th>Verdict</th><th class="num">Avg score</th><th class="num">Likely-AI / judged</th><th class="num">${isChat ? "Messages" : "Passages"}</th>
+          ${GC.FEATURES.map((k) => `<th class="num">${GC.FEATURE_LABELS[k]}</th>`).join("")}</tr></thead><tbody>
+          ${summary.map((s, i) => `<tr><td><a href="#${anchor(i)}">${esc(s.sender)}</a></td><td>${pill(s.verdict, s.verdict_label)}</td>
+            <td class="num">${fmt(s.avg_score)}</td><td class="num">${s.likely_ai} / ${s.messages_judged}</td><td class="num">${s.messages_total}</td>
+            ${GC.FEATURES.map((k) => `<td class="num">${fmt(dv(k, s[k]))}</td>`).join("")}</tr>`).join("")}
         </tbody></table></div>
-        <p class="note">${detected}. Feature columns are 0–100, higher = more AI-like.</p></div>`;
+        <p class="note">${detected}. ${isChat ? `Messages under ${GC.MIN_VERDICT_WORDS} words are too short to judge; a person is only called likely AI if at least two of their messages are.` : ""}
+          <a href="#accuracy" class="acc">How accurate is this?</a></p></div>`;
     }
 
-    // Per sender: messages, highest score first.
     const LIMIT = 20;
-    html += `<div class="card"><h2>${summary.length === 1 ? `Scored ${unit}, highest first` : (isChat ? `Messages by person` : `Passages by section`)}</h2>`;
+    html += `<div class="card"><h2>${summary.length === 1 ? `${isChat ? "Messages" : "Passages"}, most AI-like first` : isChat ? "Messages by person" : "Passages by section"}</h2>`;
     summary.forEach((s, i) => {
       const recs = scored.filter((r) => r.sender === s.sender).sort((a, b) => b.score - a.score);
-      if (summary.length === 1) {
-        html += `<ul class="msgs" data-sender="${i}">${messageList(recs, t, isChat, LIMIT)}</ul>`;
-      } else {
-        html += `<details class="sender" id="${anchor(i)}" ${i === 0 ? "open" : ""}><summary><h3>${esc(s.sender)}</h3>
-          ${pill(s.avg_score, t, `${fmt(s.ai_likely_pct)}% AI-likely`)}<span class="muted small">avg ${fmt(s.avg_score)} · ${s.messages_scored} scored</span></summary>
-          <ul class="msgs" data-sender="${i}">${messageList(recs, t, isChat, LIMIT)}</ul></details>`;
-      }
+      const list = `<ul class="msgs" data-sender="${i}">${messageList(recs, LIMIT)}</ul>`;
+      if (summary.length === 1) html += list;
+      else html += `<details class="sender" id="${anchor(i)}" ${i === 0 ? "open" : ""}><summary><h3>${esc(s.sender)}</h3>
+          ${pill(s.verdict, s.verdict_label)}<span class="muted small">avg ${fmt(s.avg_score)} · ${s.likely_ai} of ${s.messages_judged} judged ${unit} likely AI</span></summary>
+          <p class="hint">${(isChat ? EXPLAIN_PERSON : EXPLAIN)[s.verdict]}</p>${list}</details>`;
       if (recs.length > LIMIT) html += `<button class="btn link" data-more="${i}">Show all ${recs.length}</button>`;
     });
     html += `</div>`;
@@ -301,12 +311,13 @@ Honestly? Never again. Tomorrow I'm cycling, even if it means getting up at six.
       btn.onclick = () => {
         const i = +btn.dataset.more, s = summary[i];
         const recs = scored.filter((r) => r.sender === s.sender).sort((a, b) => b.score - a.score);
-        $("results").querySelector(`ul[data-sender="${i}"]`).innerHTML = messageList(recs, t, isChat, Infinity);
+        $("results").querySelector(`ul[data-sender="${i}"]`).innerHTML = messageList(recs, Infinity);
         btn.remove();
       };
     });
     $("results").querySelectorAll('a[href^="#sender-"]').forEach((a) => {
       a.onclick = () => { const d = document.querySelector(a.getAttribute("href")); if (d) d.open = true; };
     });
+    $("results").querySelectorAll("a.acc").forEach((a) => { a.onclick = () => { $("accuracy").open = true; }; });
   }
 })();

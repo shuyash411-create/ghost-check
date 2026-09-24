@@ -1,0 +1,84 @@
+{
+  "texts": {
+    "ai-chat": {
+      "n": 37,
+      "likely_ai": 0.32432432432432434,
+      "any_signs": 0.5945945945945946
+    },
+    "ai-prose": {
+      "n": 33,
+      "likely_ai": 0.3939393939393939,
+      "any_signs": 0.6666666666666666
+    },
+    "human-chat": {
+      "n": 9,
+      "likely_ai": 0.0,
+      "any_signs": 0.0
+    },
+    "human-prose": {
+      "n": 1450,
+      "likely_ai": 0.008275862068965517,
+      "any_signs": 0.04758620689655172
+    },
+    "human-web": {
+      "n": 298,
+      "likely_ai": 0.016778523489932886,
+      "any_signs": 0.06375838926174497
+    },
+    "ai:assistant": {
+      "n": 25,
+      "likely_ai": 0.48,
+      "any_signs": 0.8
+    },
+    "ai:casual": {
+      "n": 7,
+      "likely_ai": 0.0,
+      "any_signs": 0.14285714285714285
+    },
+    "ai:casual-long": {
+      "n": 5,
+      "likely_ai": 0.0,
+      "any_signs": 0.2
+    },
+    "ai:email": {
+      "n": 12,
+      "likely_ai": 0.25,
+      "any_signs": 0.5
+    },
+    "ai:essay": {
+      "n": 21,
+      "likely_ai": 0.47619047619047616,
+      "any_signs": 0.7619047619047619
+    }
+  },
+  "senders": {
+    "AI senders": {
+      "n": 18,
+      "ai": 0.3888888888888889,
+      "possible": 0.3888888888888889,
+      "none": 0.16666666666666666,
+      "inconclusive": 0.05555555555555555
+    },
+    "human chat users": {
+      "n": 698,
+      "ai": 0.0,
+      "possible": 0.0,
+      "none": 0.0014326647564469914,
+      "inconclusive": 0.998567335243553
+    },
+    "human prose (groups of 10)": {
+      "n": 554,
+      "ai": 0.0,
+      "possible": 0.10649819494584838,
+      "none": 0.8935018050541517,
+      "inconclusive": 0.0
+    },
+    "human web (groups of 10)": {
+      "n": 416,
+      "ai": 0.0,
+      "possible": 0.038461538461538464,
+      "none": 0.15384615384615385,
+      "inconclusive": 0.8076923076923077
+    }
+  }
+}

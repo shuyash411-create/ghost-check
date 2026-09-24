@@ -14,11 +14,11 @@ import argparse
 import base64
 import html
 import io
+import math
 import re
 import statistics
 import sys
 import zipfile
-from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -29,7 +29,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import pandas as pd  # noqa: E402
 
-__version__ = "1.0.0"
+__version__ = "2.0.0"
 
 # --------------------------------------------------------------------------
 # Parsing
@@ -60,6 +60,7 @@ class Record:
     timestamp: datetime | None
     message: str
     source: str
+    kind: str = "chat"  # "chat" or "document"
 
 
 def _clean(line: str) -> str:
@@ -163,7 +164,7 @@ def parse_document(pages: list[str], source: str, by_page: bool) -> list[Record]
     records = []
     for i, page in enumerate(pages, 1):
         sender = f"{stem} · p.{i}" if by_page else stem
-        records += [Record(sender, None, p, source) for p in _paragraphs(page)]
+        records += [Record(sender, None, p, source, "document") for p in _paragraphs(page)]
     return records
 
 
@@ -218,39 +219,77 @@ def load_text(pages: list[str], source: str, mode: str, dayfirst: bool | None,
 # --------------------------------------------------------------------------
 # Scoring
 # --------------------------------------------------------------------------
+#
+# Model v2. Five signals whose direction is backed by research on LLM text,
+# combined with a logistic model fitted (non-negative weights) by eval/fit.py.
+# Verdict thresholds are set so that, on human texts (30+ words) written before AI
+# chatbots existed, about 1% get "Likely AI" and about 5% get "Some AI signs".
+# See "Accuracy" in README.md for the measured error rates. Keep web/ghost-check.js in sync.
 
-# Phrases that show up far more in LLM output than in people's chats.
-STOCK_PHRASES = [
-    "it's important to note", "it is important to note", "it's worth noting", "it is worth noting",
-    "delve", "in conclusion", "in summary", "additionally,", "furthermore,", "moreover,",
-    "i hope this helps", "i hope this message finds you", "hope this message finds you",
-    "feel free to", "let me know if you have any", "don't hesitate to", "great question",
-    "certainly!", "absolutely!", "as an ai", "as a language model", "here's a", "here are some",
-    "key takeaways", "navigate the", "tapestry", "in today's fast-paced", "a testament to",
-    "plays a crucial role", "crucial role", "seamless", "leverage", "foster", "embark",
-    "overall,", "ultimately,", "that being said", "on the other hand", "not only", "whether you're",
-    "i understand your", "thank you for reaching out", "rest assured", "navigating",
-    "comprehensive", "streamline", "elevate", "unlock", "empower",
-]
-_STOCK_RE = re.compile("|".join(re.escape(p) for p in STOCK_PHRASES))
+# Words LLMs overuse (Kobak et al. 2024, "Delving into ChatGPT usage in academic
+# writing"; Liang et al. 2024). "various" was dropped: it is more common in
+# pre-2020 human prose than in AI text.
+AI_VOCAB = frozenset("""
+delve delves delving delved showcase showcases showcasing underscore underscores underscoring
+crucial crucially pivotal intricate intricacies meticulous meticulously comprehensive notably
+noteworthy commendable realm realms landscape tapestry foster fosters fostering enhance enhances
+enhancing bolster streamline streamlines leverage leveraging seamless seamlessly robust nuanced
+multifaceted holistic paramount invaluable unwavering embark navigate navigating elevate empower
+empowers empowering unlock unlocking harness vibrant testament profound additionally furthermore
+moreover ultimately overall essential vital ensure ensures ensuring potential insights valuable
+effectively prioritize resonate dynamic innovative transformative strive facilitate optimal
+significant significantly journey thrive
+""".split())
 
-PUNCT = set(".,;:!?—–-()\"'’“”…")
-TERMINAL = ".!?…"
+# Multi-word stock phrases typical of assistant-style text.
+STOCK_PHRASES = re.compile(
+    r"it'?s (?:important|worth|essential|crucial) to|it is (?:important|worth noting|essential|crucial)"
+    r"|plays? an? (?:crucial|vital|key|pivotal|significant) role|in today'?s|whether you'?re"
+    r"|i hope this|hope this (?:message|email) finds you|let me know if|feel free to|happy to help"
+    r"|here'?s (?:a|an|some|how|what)\b|here are (?:some|a few)|great question|i understand (?:your|that)"
+    r"|on the other hand|a wide range of|when it comes to|not only\b[^.]*\bbut also|by doing so"
+    r"|don'?t hesitate|rest assured|thank you for reaching out|i'?d be happy to|as an ai|as a language model"
+    r"|can make a (?:big|meaningful|significant|real) difference|in the long run|key (?:factors|takeaways)"
+    r"|a testament to|that being said|(?:certainly|absolutely|of course)!"
+)
 
-WEIGHTS = {
-    "sentence_variance": 0.20,
-    "burstiness": 0.20,
-    "punctuation": 0.20,
-    "word_length": 0.15,
-    "repetition": 0.25,
+# Sentence-opening transitions LLMs lean on.
+TRANSITIONS = re.compile(
+    r"(?:additionally|furthermore|moreover|however|overall|ultimately|in conclusion|in summary"
+    r"|in addition|firstly|secondly|finally|lastly|on the other hand|as a result|by doing so)\b",
+    re.IGNORECASE,
+)
+
+# Fitted by eval/fit.py on model features (see _model_inputs).
+MODEL = {
+    "intercept": -1.249,
+    "word_length": 0.590,
+    "rhythm": 0.541,
+    "ai_vocab": 1.741,
+    "stock_phrases": 2.039,
+    "transitions": 0.448,
 }
+LIKELY_AI = 83.8      # score for "Likely AI"     (~1% of human texts at or above)
+POSSIBLE_AI = 63.7    # score for "Some AI signs" (~5% of human texts at or above)
+MIN_WORDS = 6         # shorter messages are not scored at all
+MIN_VERDICT_WORDS = 30  # shorter texts get "Too short to judge"
+
+FEATURES = ["word_length", "rhythm", "ai_vocab", "stock_phrases", "transitions"]
 FEATURE_LABELS = {
-    "sentence_variance": "Uniform sentences",
-    "burstiness": "Low burstiness",
-    "punctuation": "Punctuation",
-    "word_length": "Word length",
-    "repetition": "Stock / repeated phrases",
+    "word_length": "Long words",
+    "rhythm": "Even sentence rhythm",
+    "ai_vocab": "AI-typical words",
+    "stock_phrases": "Stock AI phrases",
+    "transitions": "Formulaic transitions",
 }
+VERDICTS = {
+    "ai": "Likely AI-written",
+    "possible": "Some AI signs",
+    "none": "No clear AI signs",
+    "inconclusive": "Too short to judge",
+}
+
+EDGE_PUNCT = ".,;:!?—–-()\"'’“”…*_~`[]{}<>"
 
 
 def _clamp(x: float) -> float:
@@ -262,142 +301,159 @@ def _words(text: str) -> list[str]:
     (works for any script, not just Latin)."""
     out = []
     for tok in text.split():
-        tok = tok.strip("".join(PUNCT) + "*_~`[]{}<>")
+        tok = tok.strip(EDGE_PUNCT)
         if any(ch.isalpha() for ch in tok):
             out.append(tok)
     return out
 
 
-def _sentences(text: str) -> list[list[str]]:
-    parts = re.split(r"(?<=[.!?…])\s+|\n+", text)
-    return [w for w in (_words(p) for p in parts) if w]
+_SENT_SPLIT = re.compile(r"(?<=[.!?…])\s+|\n+")
 
 
-def _ngrams(words: list[str], n: int) -> list[tuple[str, ...]]:
-    lw = [w.lower() for w in words]
-    return [tuple(lw[i : i + n]) for i in range(len(lw) - n + 1)]
+def _sentences(text: str) -> list[str]:
+    return [p.strip() for p in _SENT_SPLIT.split(text) if _words(p)]
 
 
 def score_features(text: str) -> dict[str, float]:
-    """Per-message subscores in [0, 1], where 1 = more AI-like.
-    NaN means "not enough text to judge" and is left out of the weighted mean."""
+    """Raw signals for one message. NaN = not measurable (e.g. rhythm needs 2+ sentences)."""
     nan = float("nan")
     words = _words(text)
     n = len(words)
     sents = _sentences(text)
-    lengths = [len(s) for s in sents]
+    lengths = [len(_words(s)) for s in sents]
     f: dict[str, float] = {"words": n, "sentences": len(sents)}
 
-    # 1. Sentence length variance: LLMs write evenly sized sentences.
+    # Long words: LLM vocabulary skews longer than everyday writing.
+    f["word_length"] = _clamp((statistics.fmean(len(w) for w in words) - 3.6) / 1.6) if n else nan
+
+    # Even rhythm: LLMs write evenly sized sentences (low variance) with little
+    # jump from one sentence to the next (low burstiness).
     if len(lengths) >= 2:
         mean = statistics.fmean(lengths)
-        cv = statistics.pstdev(lengths) / mean if mean else 0
-        f["sentence_variance"] = _clamp(1 - cv / 0.8)
+        uniform = _clamp(1 - (statistics.pstdev(lengths) / mean) / 0.8)
+        if len(lengths) >= 3:
+            jumps = statistics.fmean(abs(a - b) for a, b in zip(lengths, lengths[1:]))
+            flat = _clamp(1 - (jumps / mean) / 0.9)
+            f["rhythm"] = (uniform + flat) / 2
+        else:
+            f["rhythm"] = uniform
     else:
-        f["sentence_variance"] = nan
+        f["rhythm"] = nan
 
-    # 2. Burstiness: how much the length jumps from one sentence to the next.
-    #    Humans alternate short and long; LLM rhythm is flat.
-    if len(lengths) >= 3:
-        mean = statistics.fmean(lengths)
-        jumps = statistics.fmean(abs(a - b) for a, b in zip(lengths, lengths[1:]))
-        f["burstiness"] = _clamp(1 - (jumps / mean) / 0.9)
-    else:
-        f["burstiness"] = nan
-
-    # 3. Punctuation density and "proper" punctuation habits.
-    if n:
-        collapsed = re.sub(r"([^\w\s])\1+", r"\1", text)  # "!!!" counts once
-        collapsed = re.sub(r"(?<=\w)['’\-](?=\w)", "", collapsed)  # don't, well-known
-        density = sum(ch in PUNCT for ch in collapsed) / n
-        s = _clamp((density - 0.05) / 0.15)
-        stripped = text.strip()
-        starts = [p.strip()[:1] for p in re.split(r"(?<=[.!?…])\s+|\n+", stripped) if p.strip()]
-        cased = [c for c in starts if c.isupper() or c.islower()]
-        cap_ratio = sum(c.isupper() for c in cased) / len(cased) if cased else 0.5
-        if "—" in text:  # em dash: a strong LLM tell in chat
-            s += 0.3
-        if ";" in text:
-            s += 0.1
-        if cap_ratio == 1 and stripped[-1:] in TERMINAL:
-            s += 0.15  # every sentence capitalised and properly ended
-        elif cap_ratio < 0.5:
-            s -= 0.2  # lowercase sentence starts read like texting
-        if re.search(r"[!?]{2,}|\.{4,}", text):  # "!!!", "??", "....." read human
-            s -= 0.25
-        f["punctuation"] = _clamp(s)
-    else:
-        f["punctuation"] = nan
-
-    # 4. Average word length: LLM vocabulary skews longer than chat.
-    if n:
-        avg = statistics.fmean(len(w) for w in words)
-        f["word_length"] = _clamp((avg - 3.6) / 1.6)
-    else:
-        f["word_length"] = nan
-
-    # 5. Repeated phrase patterns (within-message part; the cross-message part
-    #    is added in score_frame once all of a sender's messages are known).
     low = text.lower().replace("’", "'")
-    hits = len(_STOCK_RE.findall(low))
-    tri = _ngrams(words, 3)
-    rep = (sum(c - 1 for c in Counter(tri).values() if c > 1) / len(tri)) if tri else 0
-    structure = 0.2 if re.search(r"^\s*(\d+[.)]|[-•*])\s+\S", text, re.M) else 0
-    structure += 0.1 if re.search(r"\*\*[^*]+\*\*", text) else 0
-    f["repetition"] = _clamp(0.35 * hits + 1.5 * rep + structure)
-    f["stock_hits"] = hits
+    # AI-typical words per 100 words.
+    f["ai_vocab"] = 100 * sum(w.lower().replace("’", "'") in AI_VOCAB for w in words) / n if n else nan
+    f["stock_phrases"] = len(STOCK_PHRASES.findall(low))
+    f["transitions"] = sum(bool(TRANSITIONS.match(s)) for s in sents) / len(sents) if sents else nan
     return f
 
 
-def _combine(row: pd.Series) -> float:
-    num = den = 0.0
-    for k, w in WEIGHTS.items():
-        v = row[k]
-        if pd.notna(v):
-            num += w * v
-            den += w
-    return 100 * num / den if den else float("nan")
+def _model_inputs(f) -> list[float]:
+    """Feature transforms the model is fitted on. NaN rhythm counts as neutral."""
+    rhythm = f["rhythm"]
+    return [
+        f["word_length"] if not math.isnan(f["word_length"]) else 0.0,
+        0.5 if math.isnan(rhythm) else rhythm,
+        math.log1p(f["ai_vocab"]) if not math.isnan(f["ai_vocab"]) else 0.0,
+        min(f["stock_phrases"], 3),
+        f["transitions"] if not math.isnan(f["transitions"]) else 0.0,
+    ]
 
 
-def score_frame(df: pd.DataFrame, min_words: int) -> pd.DataFrame:
+def model_score(f) -> float:
+    z = MODEL["intercept"] + sum(MODEL[k] * x for k, x in zip(FEATURES, _model_inputs(f)))
+    return 100 / (1 + math.exp(-z))
+
+
+def display_value(key: str, v: float) -> float:
+    """Feature on a 0-100 'how AI-like' scale for tables and bars."""
+    if v is None or (isinstance(v, float) and math.isnan(v)):
+        return float("nan")
+    if key == "ai_vocab":
+        return min(100.0, 100 * v / 3)  # 3+ per 100 words = maximum
+    if key == "stock_phrases":
+        return min(100.0, 100 * v / 3)
+    return 100 * v
+
+
+def verdict(score: float, words: int) -> tuple[str, str]:
+    """(key, label) for one text."""
+    if words < MIN_VERDICT_WORDS or math.isnan(score):
+        key = "inconclusive"
+    elif score >= LIKELY_AI:
+        key = "ai"
+    elif score >= POSSIBLE_AI:
+        key = "possible"
+    else:
+        key = "none"
+    return key, VERDICTS[key]
+
+
+def person_verdict(judged: int, likely: int, possible: int) -> tuple[str, str]:
+    """(key, label) for a sender, from their messages long enough to judge.
+
+    Needs two "Likely AI" messages (and at least 20% of what could be judged)
+    before calling a person likely AI: with many messages, one false alarm at
+    a 1% rate is expected sooner or later.
+    """
+    if likely >= 2 and likely / judged >= 0.2:
+        key = "ai"
+    elif likely >= 1 or (judged and possible / judged >= 0.3):
+        key = "possible"
+    elif judged < 2:
+        key = "inconclusive"
+    else:
+        key = "none"
+    label = "Too few long messages to judge" if key == "inconclusive" else VERDICTS[key]
+    return key, label
+
+
+def score_frame(df: pd.DataFrame, min_words: int = MIN_WORDS) -> pd.DataFrame:
     feats = pd.DataFrame([score_features(t) for t in df["message"]], index=df.index)
     df = pd.concat([df, feats], axis=1)
-
-    # Cross-message repetition: 4-grams a sender reuses in 3+ different messages
-    # (copy-pasted AI boilerplate, templated sign-offs).
-    grams = {i: set(_ngrams(_words(t), 4)) for i, t in df["message"].items()}
-    for _, idx in df.groupby("sender").groups.items():
-        counts = Counter(g for i in idx for g in grams[i])
-        for i in idx:
-            g = grams[i]
-            if g:
-                reused = sum(counts[x] >= 3 for x in g) / len(g)
-                df.at[i, "repetition"] = _clamp(df.at[i, "repetition"] + 0.6 * reused)
-
     df["scored"] = df["words"] >= min_words
-    df["score"] = df.apply(_combine, axis=1)
-    df.loc[~df["scored"], "score"] = float("nan")
+    df["score"] = [model_score(r) if ok else float("nan") for r, ok in zip(feats.to_dict("records"), df["scored"])]
+    v = [verdict(s, w) if ok else ("skipped", "Not scored") for s, w, ok in zip(df["score"], df["words"], df["scored"])]
+    df["verdict"] = [k for k, _ in v]
+    df["verdict_label"] = [label for _, label in v]
     return df
 
 
-def summarize(df: pd.DataFrame, threshold: float) -> pd.DataFrame:
-    scored = df[df["scored"]]
-    g = scored.groupby("sender")
-    summary = pd.DataFrame(
-        {
-            "messages_scored": g.size(),
-            "avg_score": g["score"].mean(),
-            "ai_likely_pct": g["score"].apply(lambda s: 100 * (s >= threshold).mean()),
-            "avg_words": g["words"].mean(),
+def summarize(df: pd.DataFrame) -> pd.DataFrame:
+    rows = []
+    for sender, g in df.groupby("sender", sort=False):
+        scored = g[g["scored"]]
+        judged = g[g["verdict"].isin(["ai", "possible", "none"])]
+        likely = int((judged["verdict"] == "ai").sum())
+        possible = int((judged["verdict"] == "possible").sum())
+        avg = (scored["score"] * scored["words"]).sum() / scored["words"].sum() if len(scored) else float("nan")
+        if "kind" in g and (g["kind"] == "document").all():
+            key, label = verdict(avg, int(scored["words"].sum()))  # a document is judged as a whole
+        else:
+            key, label = person_verdict(len(judged), likely, possible)
+        row = {
+            "sender": sender,
+            "messages_total": len(g),
+            "messages_scored": len(scored),
+            "messages_judged": len(judged),
+            "likely_ai": likely,
+            "some_signs": possible,
+            "ai_likely_pct": 100 * likely / len(judged) if len(judged) else float("nan"),
+            # Word-weighted, so a long message counts more than "ok thanks".
+            "avg_score": avg,
+            "total_words": int(scored["words"].sum()),
+            "avg_words": scored["words"].mean() if len(scored) else float("nan"),
+            "verdict": key,
+            "verdict_label": label,
         }
-    )
-    for k in WEIGHTS:
-        summary[k] = g[k].mean()
-    total = df.groupby("sender").size().rename("messages_total")
-    summary = summary.join(total, how="right").fillna({"messages_scored": 0})
-    summary[["messages_scored", "messages_total"]] = summary[["messages_scored", "messages_total"]].astype(int)
-    return summary.sort_values(["ai_likely_pct", "avg_score"], ascending=False, na_position="last")
-
+        for k in FEATURES:
+            row[k] = scored[k].mean() if len(scored) else float("nan")
+        rows.append(row)
+    order = {"ai": 0, "possible": 1, "none": 2, "inconclusive": 3}
+    summary = pd.DataFrame(rows).set_index("sender")
+    summary["_o"] = summary["verdict"].map(order)
+    summary = summary.sort_values(["_o", "ai_likely_pct", "avg_score"], ascending=[True, False, False], na_position="last")
+    return summary.drop(columns="_o")
 
 # --------------------------------------------------------------------------
 # Report
@@ -406,9 +462,17 @@ def summarize(df: pd.DataFrame, threshold: float) -> pd.DataFrame:
 BAR = "#2a78d6"
 INK, INK2, GRID, SURFACE = "#0b0b0b", "#52514e", "#e4e3df", "#fcfcfb"
 
+ACCURACY_NOTE = (
+    "Measured on human writing from before AI chatbots existed: about 1% of texts of 30+ words get "
+    "“Likely AI-written” by mistake, and none of 970 human writers judged on 10 texts each did. On AI-written test text it "
+    "flags about half of typical assistant answers and essays as likely AI and about three in four "
+    "with at least some signs, but AI told to write casually is usually missed. "
+    "Texts under 30 words are too short to judge."
+)
 
-def chart_png(summary: pd.DataFrame, threshold: float) -> str:
-    data = summary.dropna(subset=["ai_likely_pct"]).iloc[::-1]  # highest at top
+
+def chart_png(summary: pd.DataFrame) -> str:
+    data = summary.dropna(subset=["avg_score"]).iloc[::-1]  # highest at top
     if data.empty:
         return ""
     h = max(1.6, 0.42 * len(data) + 1.0)
@@ -416,14 +480,16 @@ def chart_png(summary: pd.DataFrame, threshold: float) -> str:
     fig.patch.set_facecolor(SURFACE)
     ax.set_facecolor(SURFACE)
     labels = [s if len(s) <= 28 else s[:27] + "…" for s in data.index]
-    bars = ax.barh(labels, data["ai_likely_pct"], color=BAR, height=0.6, zorder=2)
-    for bar, pct, avg in zip(bars, data["ai_likely_pct"], data["avg_score"]):
+    bars = ax.barh(labels, data["avg_score"], color=BAR, height=0.6, zorder=2)
+    for bar, avg, label in zip(bars, data["avg_score"], data["verdict_label"]):
         ax.text(bar.get_width() + 1.2, bar.get_y() + bar.get_height() / 2,
-                f"{pct:.0f}%  (avg {avg:.0f})", va="center", fontsize=8.5, color=INK2)
-    ax.set_xlim(0, 118)
+                f"{avg:.0f}  · {label}", va="center", fontsize=8.5, color=INK2)
+    for x, name in [(POSSIBLE_AI, "some signs"), (LIKELY_AI, "likely AI")]:
+        ax.axvline(x, color=INK2, linewidth=0.8, linestyle=(0, (3, 3)), zorder=1)
+        ax.text(x, len(data) - 0.35, f" {name}", fontsize=7.5, color=INK2, va="bottom")
+    ax.set_xlim(0, 140)
     ax.set_xticks(range(0, 101, 25))
-    ax.set_xticklabels([f"{t}%" for t in range(0, 101, 25)])
-    ax.set_xlabel(f"Messages scoring ≥ {threshold:g} (AI-likely %)", color=INK2, fontsize=9)
+    ax.set_xlabel("Average AI-likelihood score (word-weighted)", color=INK2, fontsize=9)
     ax.grid(axis="x", color=GRID, linewidth=0.8, zorder=0)
     for side in ("top", "right", "left"):
         ax.spines[side].set_visible(False)
@@ -437,35 +503,28 @@ def chart_png(summary: pd.DataFrame, threshold: float) -> str:
     return base64.b64encode(buf.getvalue()).decode()
 
 
-def _band(score: float, threshold: float) -> str:
-    if pd.isna(score):
-        return "na"
-    if score >= threshold:
-        return "high"
-    if score >= threshold - 15:
-        return "mid"
-    return "low"
+PILL = {"ai": "high", "possible": "mid", "none": "low", "inconclusive": "na", "skipped": "na"}
 
 
 def _fmt(v, digits=0) -> str:
-    return "–" if pd.isna(v) else f"{v:.{digits}f}"
+    return "–" if v is None or pd.isna(v) else f"{v:.{digits}f}"
 
 
-def render_html(df, summary, sources, threshold, min_words, top) -> str:
+def render_html(df, summary, sources, top) -> str:
     e = html.escape
-    png = chart_png(summary, threshold)
-    feat_heads = "".join(f"<th>{e(FEATURE_LABELS[k])}</th>" for k in WEIGHTS)
-
+    png = chart_png(summary)
+    feat_heads = "".join(f"<th>{e(FEATURE_LABELS[k])}</th>" for k in FEATURES)
     anchor = {sender: f"s-{i}" for i, sender in enumerate(summary.index)}
+
     rows = []
     for sender, s in summary.iterrows():
         rows.append(
             f"<tr><td><a href='#{anchor[sender]}'>{e(sender)}</a></td>"
-            f"<td class='num'><span class='pill {_band(s.avg_score, threshold)}'>{_fmt(s.ai_likely_pct)}%</span></td>"
+            f"<td><span class='pill {PILL[s.verdict]}'>{e(s.verdict_label)}</span></td>"
             f"<td class='num'>{_fmt(s.avg_score)}</td>"
-            f"<td class='num'>{int(s.messages_scored)} / {int(s.messages_total)}</td>"
-            f"<td class='num'>{_fmt(s.avg_words, 1)}</td>"
-            + "".join(f"<td class='num'>{_fmt(100 * s[k])}</td>" for k in WEIGHTS)
+            f"<td class='num'>{int(s.likely_ai)} / {int(s.messages_judged)}</td>"
+            f"<td class='num'>{int(s.messages_total)}</td>"
+            + "".join(f"<td class='num'>{_fmt(display_value(k, s[k]))}</td>" for k in FEATURES)
             + "</tr>"
         )
 
@@ -477,26 +536,26 @@ def render_html(df, summary, sources, threshold, min_words, top) -> str:
         for _, m in shown.iterrows():
             ts = m.timestamp.strftime("%Y-%m-%d %H:%M") if pd.notna(m.timestamp) else ""
             body.append(
-                f"<tr><td class='num'><span class='pill {_band(m.score, threshold)}'>{m.score:.0f}</span></td>"
+                f"<tr><td class='num'><span class='pill {PILL[m.verdict]}' title='{e(m.verdict_label)}'>{m.score:.0f}</span></td>"
                 f"<td class='ts'>{e(ts)}</td><td class='msg'>{e(m.message)}</td>"
-                + "".join(f"<td class='num'>{_fmt(100 * m[k])}</td>" for k in WEIGHTS)
+                + "".join(f"<td class='num'>{_fmt(display_value(k, m[k]))}</td>" for k in FEATURES)
                 + "</tr>"
             )
         more = (f"<p class='muted'>Showing top {len(shown)} of {len(msgs)} scored messages.</p>"
                 if len(msgs) > len(shown) else "")
-        skipped = int(s.messages_total - s.messages_scored)
         sections.append(
             f"<section id='{anchor[sender]}'><h3>{e(sender)}"
-            f" <span class='pill {_band(s.avg_score, threshold)}'>{_fmt(s.ai_likely_pct)}% AI-likely</span></h3>"
-            f"<p class='muted'>Average score {_fmt(s.avg_score)} · {int(s.messages_scored)} messages scored"
-            f" · {skipped} too short (&lt; {min_words} words) and skipped.</p>"
+            f" <span class='pill {PILL[s.verdict]}'>{e(s.verdict_label)}</span></h3>"
+            f"<p class='muted'>{int(s.likely_ai)} of {int(s.messages_judged)} messages long enough to judge look likely AI"
+            f" ({int(s.some_signs)} more show some signs) · average score {_fmt(s.avg_score)}"
+            f" · {int(s.messages_total)} messages in total.</p>"
             + (f"<div class='scroll'><table><thead><tr><th>Score</th><th>Time</th><th>Message</th>{feat_heads}"
                f"</tr></thead><tbody>{''.join(body)}</tbody></table></div>{more}" if body else "")
             + "</section>"
         )
 
     generated = datetime.now().strftime("%Y-%m-%d %H:%M")
-    chart = (f"<figure><img alt='Bar chart of AI-likely percentage per sender' "
+    chart = (f"<figure><img alt='Bar chart of average AI-likelihood score per sender' "
              f"src='data:image/png;base64,{png}'></figure>") if png else "<p>No scorable messages.</p>"
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
@@ -524,24 +583,24 @@ td.num {{ text-align:right; font-variant-numeric:tabular-nums; white-space:nowra
 td.ts {{ white-space:nowrap; color:var(--ink2); font-size:12px; }}
 td.msg {{ white-space:pre-wrap; min-width:280px; max-width:520px; overflow-wrap:anywhere; }}
 a {{ color:inherit; }}
-.pill {{ display:inline-block; padding:1px 8px; border-radius:999px; font-weight:600; font-size:12px; }}
+.pill {{ display:inline-block; padding:1px 8px; border-radius:999px; font-weight:600; font-size:12px; white-space:nowrap; }}
 .pill.low {{ background:var(--low); color:var(--lowink); }} .pill.mid {{ background:var(--mid); color:var(--midink); }}
-.pill.high {{ background:var(--high); color:var(--highink); }} .pill.na {{ color:var(--ink2); }}
+.pill.high {{ background:var(--high); color:var(--highink); }} .pill.na {{ color:var(--ink2); border:1px solid var(--line); }}
 </style></head><body><main>
 <h1>ghost-check report</h1>
 <p class="muted">{e(", ".join(sources))} · generated {generated} · ghost-check {__version__}</p>
-<p class="note">Scores are stylometric heuristics (0–100, higher = more AI-like). A message counts as
-<b>AI-likely</b> when it scores ≥ {threshold:g}. Formal writers, non-native speakers and short
-texts can score high without any AI involved, so treat this as a prompt to look closer, not as proof.</p>
+<p class="note"><b>How to read this.</b> Scores are 0–100 (higher = more AI-like). {e(ACCURACY_NOTE)}
+A high score is a reason to look closer, not proof; a low score does not prove a human wrote it.</p>
 
 <h2>Senders compared</h2>
 {chart}
 
 <h2>Summary</h2>
-<div class="scroll"><table><thead><tr><th>Sender</th><th>AI-likely %</th><th>Avg score</th>
-<th>Scored / total</th><th>Avg words</th>{feat_heads}</tr></thead>
+<div class="scroll"><table><thead><tr><th>Sender</th><th>Verdict</th><th>Avg score</th>
+<th>Likely-AI msgs / judged</th><th>Messages</th>{feat_heads}</tr></thead>
 <tbody>{''.join(rows)}</tbody></table></div>
-<p class="muted">Feature columns are 0–100 averages (higher = more AI-like).</p>
+<p class="muted">Signal columns are 0–100 averages (higher = more AI-like). A person is called likely AI
+only when at least two of their messages are, so one false alarm can't label someone.</p>
 
 <h2>Per sender</h2>
 {''.join(sections)}
@@ -556,16 +615,12 @@ texts can score high without any AI involved, so treat this as a prompt to look 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="ghost-check",
-        description="Score WhatsApp chats or PDFs for AI-written text and write an HTML report.",
+        description="Score WhatsApp chats, PDFs or text files for AI-written text and write an HTML report.",
     )
-    p.add_argument("inputs", nargs="+", type=Path, help="WhatsApp export (.txt/.zip) or .pdf files")
+    p.add_argument("inputs", nargs="+", type=Path, help="WhatsApp export (.txt/.zip), .pdf or text files")
     p.add_argument("-o", "--output", type=Path, default=Path("ghost-check-report.html"),
                    help="HTML report path (default: %(default)s)")
     p.add_argument("--csv", type=Path, help="also write per-message scores to this CSV")
-    p.add_argument("--threshold", type=float, default=50,
-                   help="score at which a message counts as AI-likely (default: %(default)s)")
-    p.add_argument("--min-words", type=int, default=6,
-                   help="skip messages shorter than this (default: %(default)s)")
     p.add_argument("--top", type=int, default=25,
                    help="messages listed per sender in the report (default: %(default)s)")
     p.add_argument("--mode", choices=["auto", "chat", "document"], default="auto",
@@ -595,21 +650,20 @@ def main(argv: list[str] | None = None) -> int:
 
     df = pd.DataFrame([r.__dict__ for r in records])
     df["timestamp"] = pd.to_datetime(df["timestamp"])
-    df = score_frame(df, args.min_words)
-    summary = summarize(df, args.threshold)
+    df = score_frame(df)
+    summary = summarize(df)
 
-    args.output.write_text(
-        render_html(df, summary, [p.name for p in args.inputs], args.threshold, args.min_words, args.top),
-        encoding="utf-8",
-    )
+    args.output.write_text(render_html(df, summary, [p.name for p in args.inputs], args.top), encoding="utf-8")
     if args.csv:
         df.to_csv(args.csv, index=False)
 
     print()
-    print(summary[["messages_scored", "avg_score", "ai_likely_pct"]]
-          .rename(columns={"messages_scored": "scored", "avg_score": "avg", "ai_likely_pct": "AI-likely %"})
-          .round(1).to_string())
+    table = summary[["verdict_label", "avg_score", "likely_ai", "messages_judged"]].copy()
+    table["avg_score"] = table["avg_score"].round(1)
+    table.columns = ["verdict", "avg score", "likely-AI msgs", "judged"]
+    print(table.to_string())
     print(f"\nReport written to {args.output}")
+    print("Heuristic signal, not proof. See the report for measured error rates.")
     return 0
 
 

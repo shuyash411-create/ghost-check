@@ -84,7 +84,7 @@ details.opts summary { cursor: pointer; color: var(--ink2); font-size: 14px; }
 .bar > i { display: block; height: 100%; background: var(--accent); border-radius: 5px; }
 .feat .v { text-align: right; font-variant-numeric: tabular-nums; font-size: 14px; }
 .chart { display: grid; gap: 10px; }
-.chart .c { display: grid; grid-template-columns: minmax(90px, 180px) 1fr 110px; gap: 12px; align-items: center; text-decoration: none; color: inherit; border-radius: 6px; padding: 2px 0; }
+.chart .c { display: grid; grid-template-columns: minmax(90px, 160px) 1fr 216px; gap: 12px; align-items: center; text-decoration: none; color: inherit; border-radius: 6px; padding: 2px 0; }
 .chart .c:hover .bar > i { filter: brightness(1.1); }
 .chart .c .who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
 .chart .bar { height: 18px; border-radius: 4px; }
@@ -96,7 +96,7 @@ table { border-collapse: collapse; width: 100%; font-size: 14px; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px; text-align: left; vertical-align: top; }
 th { font-size: 12px; color: var(--ink2); font-weight: 600; white-space: nowrap; }
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.pill { display: inline-block; min-width: 38px; text-align: center; padding: 1px 8px; border-radius: 999px; font-weight: 700; font-size: 12px; font-variant-numeric: tabular-nums; }
+.pill { display: inline-block; min-width: 38px; text-align: center; padding: 1px 8px; border-radius: 999px; font-weight: 700; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .pill.low { background: var(--low); color: var(--lowink); } .pill.mid { background: var(--mid); color: var(--midink); }
 .pill.high { background: var(--high); color: var(--highink); } .pill.na { color: var(--ink3); }
 details.sender { border-top: 1px solid var(--line); padding: 14px 0 0; margin-top: 14px; }
@@ -114,6 +114,22 @@ details.sender[open] > summary::before { transform: rotate(90deg); }
 .note { font-size: 13px; color: var(--ink2); margin: 16px 0 0; }
 footer { margin-top: 32px; font-size: 13px; color: var(--ink3); }
 footer a { color: inherit; }
+.about > summary { cursor: pointer; list-style: none; }
+.about > summary::-webkit-details-marker { display: none; }
+.about > summary h2 { display: inline; margin: 0; }
+.about > summary::after { content: " ▸"; color: var(--ink3); }
+.about[open] > summary::after { content: " ▾"; }
+.about p, .about li { color: var(--ink2); }
+.about ul { padding-left: 18px; }
+.about li { margin: 6px 0; }
+table.acc { margin: 12px 0; }
+table.acc th.grp { font-size: 12px; color: var(--ink); padding-top: 14px; text-align: left; }
+.hint { margin: 10px 0 0; padding: 10px 12px; border-radius: 8px; background: var(--bg); border: 1px solid var(--line); font-size: 14px; color: var(--ink2); }
+.pill.na { border: 1px solid var(--line); }
+.chart .track { position: relative; }
+.chart .mark { position: absolute; top: -3px; bottom: -3px; width: 0; border-left: 1px dashed var(--ink3); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--ink2); margin: 10px 0 0; }
+.legend i { display: inline-block; width: 0; height: 10px; border-left: 1px dashed var(--ink3); margin-right: 4px; vertical-align: middle; }
 [hidden] { display: none !important; }
 @media (max-width: 600px) {
   main { padding-top: 20px; }
@@ -122,7 +138,7 @@ footer a { color: inherit; }
   .feat .f { grid-template-columns: 1fr 40px; }
   .feat .f .bar { grid-column: 1 / -1; grid-row: 2; }
   .chart .c { grid-template-columns: 1fr auto; }
-  .chart .c .bar { grid-column: 1 / -1; grid-row: 2; }
+  .chart .c .track { grid-column: 1 / -1; grid-row: 2; }
   .msg { grid-template-columns: 1fr; }
 }
 </style>
@@ -167,10 +183,6 @@ footer a { color: inherit; }
     <details class="opts">
       <summary>Options</summary>
       <div class="optgrid">
-        <label>AI-likely threshold: <b id="threshold-v">50</b>
-          <input type="range" id="threshold" min="20" max="90" step="5" value="50"></label>
-        <label>Skip messages shorter than (words)
-          <input type="number" id="minwords" min="1" max="50" value="6"></label>
         <label>Treat input as
           <select id="mode"><option value="auto">Auto-detect</option><option value="chat">WhatsApp chat</option><option value="document">Document</option></select></label>
         <label class="check"><input type="checkbox" id="bypage"> Score each PDF page separately</label>
@@ -181,9 +193,37 @@ footer a { color: inherit; }
 
   <section id="results" aria-live="polite"></section>
 
+  <details class="card about" id="accuracy">
+    <summary><h2>How accurate is this?</h2></summary>
+    <p><b>No AI detector is 100% accurate</b>, and any tool that claims to be is not telling the truth. ghost-check
+      is tuned to be <b>careful</b>: when it says “Likely AI-written”, it is rarely wrong, but it will miss some AI text.</p>
+    <table class="acc">
+      <thead><tr><th>Tested on</th><th class="num">Texts</th><th class="num">“Likely AI”</th><th class="num">At least “Some AI signs”</th></tr></thead>
+      <tbody>
+        <tr><th colspan="4" class="grp">Human writing from before AI chatbots existed (every flag is a false alarm)</th></tr>
+        <tr><td>Published prose, 1961 (news, academic, fiction)</td><td class="num">1,450</td><td class="num">0.8%</td><td class="num">4.8%</td></tr>
+        <tr><td>Web text, 2000s (forums, reviews, quotes)</td><td class="num">298</td><td class="num">1.7%</td><td class="num">6.4%</td></tr>
+        <tr><td>People with 10 texts each, judged per person</td><td class="num">970</td><td class="num">0%</td><td class="num">7.7%</td></tr>
+        <tr><th colspan="4" class="grp">AI-written test text (share caught)</th></tr>
+        <tr><td>Assistant-style answers</td><td class="num">25</td><td class="num">48%</td><td class="num">80%</td></tr>
+        <tr><td>Essays</td><td class="num">21</td><td class="num">48%</td><td class="num">76%</td></tr>
+        <tr><td>Emails</td><td class="num">12</td><td class="num">25%</td><td class="num">50%</td></tr>
+        <tr><td>AI told to write casually</td><td class="num">12</td><td class="num">0%</td><td class="num">17%</td></tr>
+      </tbody>
+    </table>
+    <ul>
+      <li><b>Short texts can’t be judged.</b> Under 30 words there isn’t enough evidence either way, so you get “Too short to judge”.</li>
+      <li><b>“No clear AI signs” is not proof a human wrote it.</b> AI that is prompted to sound casual, or edited by a person, usually passes.</li>
+      <li><b>People are judged carefully.</b> In a chat, someone is only called likely AI if at least two of their messages are, so a single false alarm can’t label a person.</li>
+      <li><b>Formal writing can raise the score.</b> Academic or very polished human writing sometimes shows “Some AI signs”.</li>
+      <li>The AI test set is small and written by one AI model, so the AI numbers are indicative. The human numbers come from real texts and are reliable.</li>
+    </ul>
+    <p class="muted small">Method, data and code: <a href="https://github.com/shuyash411-create/ghost-check/tree/main/eval">eval/</a> in the repository.</p>
+  </details>
+
   <footer>
-    Scores come from writing-style heuristics: sentence length variance, burstiness, punctuation, word length and stock/repeated phrases.
-    They are a signal, not proof. Formal writers, non-native speakers and short texts can score high without AI.
+    ghost-check looks at writing style: AI-typical words and phrases, formulaic transitions, word length and sentence rhythm.
+    It is a signal to look closer, not proof. <a href="#accuracy" id="acc-link">How accurate is it?</a>
     · <a href="https://github.com/shuyash411-create/ghost-check">Source &amp; CLI</a>
   </footer>
 </main>

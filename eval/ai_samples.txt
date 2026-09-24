@@ -1,0 +1,275 @@
+# AI-written evaluation samples.
+# Written by an AI model (Claude) for ghost-check's evaluation, in several genres,
+# including text deliberately prompted to sound casual/human. One model's style,
+# so detection rates measured on these are indicative, not a benchmark.
+# Format: a line "=== <genre>" starts a sample; the text follows until the next marker.
+
+=== assistant
+Great question! There are a few key factors to consider when choosing a laptop for college. First, think about portability — you'll likely be carrying it around campus all day, so a lightweight model under 1.5 kg is ideal. Second, battery life matters more than raw performance for most students. Finally, make sure it has enough storage for your coursework and a reliable warranty.
+
+=== assistant
+Certainly! Here's a simple recipe for a quick weeknight pasta. Start by boiling salted water and cooking the spaghetti until al dente. Meanwhile, sauté garlic in olive oil over medium heat until fragrant. Add cherry tomatoes and cook until they begin to burst. Toss the pasta with the sauce, finish with fresh basil and parmesan, and enjoy!
+
+=== assistant
+I understand your frustration with the delayed delivery. Unfortunately, shipping times can vary depending on the carrier and your location. I recommend checking the tracking link in your confirmation email for the most up-to-date information. If the package hasn't arrived within five business days, please don't hesitate to contact our support team for further assistance.
+
+=== assistant
+That's a thoughtful question. While there's no single right answer, many experts suggest starting with a clear budget and working backward from there. It's important to note that emergency savings should typically come before investing. Once you have three to six months of expenses set aside, you can explore low-cost index funds as a long-term option.
+
+=== assistant
+Absolutely! Learning to play the guitar as an adult is completely achievable. Begin with a few basic open chords, such as G, C, D, and E minor. Practice switching between them slowly for ten to fifteen minutes a day. Consistency matters far more than long practice sessions, and you'll notice steady progress within a few weeks.
+
+=== assistant
+Here are some tips for improving your sleep. Keep a consistent schedule, even on weekends. Avoid screens for at least an hour before bed, since blue light can interfere with melatonin production. Keep your bedroom cool, dark, and quiet. Finally, limit caffeine after midday and consider a short wind-down routine such as reading or light stretching.
+
+=== assistant
+You raise a valid point. Remote work offers significant flexibility and eliminates commuting time, which many employees value highly. However, it can also lead to feelings of isolation and blurred boundaries between work and personal life. Ultimately, the best arrangement depends on the individual, the team, and the nature of the work itself.
+
+=== assistant
+Sure! To reset your router, locate the small reset button on the back of the device. Using a paperclip, press and hold the button for about ten seconds until the lights begin to flash. Once the router restarts, you can reconnect using the default network name and password printed on the label. Let me know if you run into any issues!
+
+=== assistant
+It sounds like you're dealing with a lot right now, and that's completely understandable. Taking small steps can make a big difference. Try breaking your tasks into manageable pieces and focusing on one thing at a time. Remember to be kind to yourself, and consider reaching out to a friend or professional if you need additional support.
+
+=== assistant
+Great choice! Kyoto is a wonderful destination in the autumn. I'd recommend visiting Fushimi Inari early in the morning to avoid the crowds, then exploring the historic Higashiyama district in the afternoon. Don't miss the maple leaves at Tofuku-ji, which are especially stunning in November. Be sure to book accommodation well in advance, as it's a popular season.
+
+=== assistant
+The main difference between a virus and a bacterium lies in their structure and how they reproduce. Bacteria are single-celled organisms that can survive and multiply on their own. Viruses, on the other hand, are much smaller and require a host cell to replicate. This distinction is why antibiotics are effective against bacterial infections but not viral ones.
+
+=== assistant
+Thank you for reaching out! I'd be happy to help you plan your study schedule. A good approach is to divide your subjects across the week and allocate more time to the topics you find most challenging. Additionally, incorporating short breaks using the Pomodoro technique can help maintain focus. Would you like me to create a sample weekly plan for you?
+
+=== assistant
+Of course! Photosynthesis is the process by which plants convert light energy into chemical energy. Using sunlight, water, and carbon dioxide, plants produce glucose and release oxygen as a byproduct. This process takes place primarily in the chloroplasts, which contain the green pigment chlorophyll. It is essential for life on Earth, as it provides the oxygen we breathe.
+
+=== assistant
+Here's a quick overview of the pros and cons. On the positive side, electric cars have lower running costs, produce zero tailpipe emissions, and require less maintenance. On the other hand, they often have a higher upfront price, and charging infrastructure can be limited in some areas. Overall, they're an excellent option if you have access to home charging.
+
+=== assistant
+I appreciate you sharing that with me. Setting boundaries with family can be challenging, especially when emotions run high. It may help to express your needs calmly and clearly, using "I" statements rather than accusations. Remember that it's okay to prioritize your well-being, and healthy boundaries often strengthen relationships in the long run.
+
+=== assistant
+To improve your resume, focus on quantifiable achievements rather than listing responsibilities. For example, instead of writing "managed social media," you might say "increased engagement by 40% over six months." Tailor each resume to the specific job description, keep the layout clean and consistent, and ensure it fits on a single page if possible.
+
+=== assistant
+Good morning! Here's a motivational thought to start your day: every small step you take brings you closer to your goals. Progress doesn't have to be dramatic to be meaningful. Focus on what you can control, celebrate your wins, no matter how small, and remember that consistency is the foundation of lasting success. You've got this!
+
+=== assistant
+There are several ways to reduce food waste at home. Plan your meals for the week and create a shopping list to avoid buying more than you need. Store fruits and vegetables properly to extend their freshness. Use leftovers creatively, for instance by turning them into soups or stir-fries. Finally, consider composting any scraps that can't be eaten.
+
+=== assistant
+Certainly! The French Revolution, which began in 1789, was driven by a combination of financial crisis, social inequality, and Enlightenment ideas. The monarchy's debt, coupled with widespread food shortages, fueled public anger. The revolution ultimately led to the abolition of the monarchy, the rise of Napoleon, and lasting changes in European political thought.
+
+=== assistant
+That's a great idea for a small business! Before launching, it's worth researching your local market to understand demand and potential competitors. Creating a simple business plan can help clarify your goals, pricing, and budget. You might also consider starting small, perhaps by selling online or at local markets, to test the concept before scaling up.
+
+=== assistant
+When preparing for a job interview, research the company thoroughly, including its mission, recent news, and culture. Practice answering common questions using the STAR method to structure your responses. Prepare a few thoughtful questions to ask the interviewer. On the day, arrive early, dress appropriately, and follow up with a brief thank-you email afterward.
+
+=== assistant
+Staying hydrated is essential for overall health. Water helps regulate body temperature, supports digestion, and keeps your joints lubricated. While the common recommendation is eight glasses a day, individual needs vary based on activity level, climate, and body size. A good rule of thumb is to drink when you're thirsty and monitor the color of your urine.
+
+=== assistant
+I'm sorry to hear about your plant! Yellowing leaves are often a sign of overwatering, which is one of the most common issues with houseplants. Check whether the soil feels soggy and make sure the pot has adequate drainage. Allow the top inch of soil to dry out before watering again, and move the plant to a spot with bright, indirect light.
+
+=== assistant
+Here's a concise summary of the article. The author argues that urban green spaces provide significant benefits for both physical and mental health. Studies cited in the piece show reduced stress levels and increased physical activity among residents living near parks. The article concludes by calling on city planners to prioritize green infrastructure in future developments.
+
+=== assistant
+Absolutely, I can help with that! A strong password should be at least twelve characters long and include a mix of uppercase and lowercase letters, numbers, and symbols. Avoid using personal information such as birthdays or names. Better yet, consider using a reputable password manager, which can generate and securely store unique passwords for each of your accounts.
+
+=== casual
+haha yeah i saw that too. honestly i think the second option makes more sense, the first one sounds cool but it's gonna be a nightmare to organise with everyone's schedules. let's just go with the simple plan and see how it goes
+
+=== casual
+omg same, i've been so tired all week. work has been crazy and i barely slept on tuesday. might just stay in tonight and order pizza tbh. you still coming saturday though right?
+
+=== casual
+nah don't worry about it, it's all good! stuff like that happens. we can always reschedule for next week, i'm free most evenings except thursday
+
+=== casual
+lol that's exactly what happened to me last year. the train just stopped in the middle of nowhere for like an hour and nobody told us anything. ended up missing the whole first half of the match
+
+=== casual
+ok so update: the landlord finally replied and he says he'll send someone to fix the heater on monday. not ideal but at least it's happening. gonna be a cold weekend lol
+
+=== casual
+yeah honestly I agree with you. I think people overthink it way too much. just pick something you actually enjoy and stick with it for a while, you can always change later if it doesn't work out
+
+=== casual
+wait really?? I had no idea she moved. we should definitely visit sometime, it's not that far if we take the early bus
+
+=== casual
+Sounds good to me! I'll bring snacks and a couple of games. Should I pick you up on the way or are you getting a ride with Sam?
+
+=== casual
+ugh I know, the ending was so disappointing. they spent three seasons building up that character and then just dropped the whole storyline. still enjoyed most of it though
+
+=== casual
+not gonna lie I kinda forgot about the deadline until this morning 😅 managed to finish most of it though. just need to fix the references and I'm done
+
+=== casual
+Honestly the new place is pretty great so far. The kitchen is tiny but there's a nice park right across the street and the neighbours seem friendly. Still unpacking boxes though lol
+
+=== casual
+haha no way, that's hilarious. I would've paid to see his face when the dog ran off with the sandwich
+
+=== casual
+yeah I tried that recipe you sent! turned out pretty good, although I think I added too much chilli. my eyes were watering the whole time lol
+
+=== casual
+Ok I'm leaving now, should be there in about 20 mins. Traffic looks a bit heavy near the bridge so maybe 25. Save me a seat!
+
+=== casual
+tbh I don't really mind either way. if everyone else wants to do the beach then let's do the beach, I'm just happy to get out of the city for a day
+
+=== email
+Hi Priya,
+
+I hope this message finds you well. I wanted to follow up on our conversation from last week regarding the upcoming product launch. As discussed, the marketing team will finalize the campaign materials by Friday, and we'll share them with you for review early next week. Please let me know if you have any questions or require additional information in the meantime.
+
+Best regards,
+Daniel
+
+=== email
+Dear Hiring Manager,
+
+I am writing to express my strong interest in the Data Analyst position at your company. With over three years of experience in data analysis and a proven track record of delivering actionable insights, I am confident in my ability to contribute to your team. I would welcome the opportunity to discuss how my skills align with your needs. Thank you for your time and consideration.
+
+=== email
+Hi team,
+
+Just a quick reminder that our quarterly review meeting is scheduled for Thursday at 10 AM in the main conference room. Please come prepared with a brief update on your key projects, including any challenges or blockers you're currently facing. If you're unable to attend, kindly share your update with me in writing beforehand. Thanks, and see you there!
+
+=== email
+Dear Mr. Kapoor,
+
+Thank you for your prompt response and for taking the time to review our proposal. We appreciate your valuable feedback and have incorporated the suggested changes into the revised document, which I have attached for your reference. Please feel free to reach out if you would like to schedule a call to discuss the next steps.
+
+Kind regards,
+Ananya
+
+=== email
+Hello everyone,
+
+I'm pleased to announce that we have successfully completed the migration to our new project management platform. This transition will streamline our workflows and improve collaboration across departments. Training sessions will be held throughout next week, and a detailed user guide is available on the shared drive. Thank you all for your patience and cooperation during this process.
+
+=== email
+Hi Rahul,
+
+I wanted to reach out regarding the invoice for last month's services. It appears that the payment is now two weeks overdue. I understand that oversights happen, so I wanted to kindly remind you and ensure there are no issues on your end. Please let me know if you need a copy of the invoice or if there's anything I can do to help resolve this.
+
+=== email
+Dear Professor Mehta,
+
+I hope you are doing well. I am writing to request a brief extension on the research paper due this Friday. Due to an unexpected family matter, I have been unable to dedicate sufficient time to completing it to the standard I would like. I would be grateful for an additional three days, and I am happy to provide any documentation if needed.
+
+=== email
+Hi Sarah,
+
+Thank you so much for the lovely dinner on Saturday! It was wonderful to catch up and meet your new colleagues. The lasagna was absolutely delicious, and I would love to get the recipe if you're willing to share it. Let's plan to get together again soon, perhaps at my place next time.
+
+Warm regards,
+Emily
+
+=== email
+Dear Customer,
+
+We are writing to inform you about an important update to our privacy policy, which will take effect on the first of next month. These changes are designed to provide greater transparency regarding how we collect, use, and protect your personal information. We encourage you to review the updated policy on our website. No action is required on your part.
+
+=== email
+Hello Arjun,
+
+Following up on today's meeting, I've summarized the key action items below. First, the design team will deliver the updated mockups by Wednesday. Second, engineering will provide a revised timeline by the end of the week. Finally, we will reconvene on Monday to finalize the scope. Please let me know if I missed anything.
+
+=== email
+Hi all,
+
+As we approach the end of the year, I want to take a moment to thank each of you for your hard work and dedication. This year presented many challenges, yet our team consistently rose to the occasion and delivered outstanding results. I'm incredibly proud of what we've accomplished together and look forward to an even more successful year ahead.
+
+=== email
+Dear Landlord,
+
+I am writing to report an issue with the heating system in my apartment, which has not been functioning properly for the past several days. As temperatures continue to drop, this has become increasingly uncomfortable. I would greatly appreciate it if you could arrange for a technician to inspect and repair the system at your earliest convenience.
+
+Sincerely,
+Kavya
+
+=== essay
+In today's rapidly evolving digital landscape, social media has become an integral part of daily life for billions of people around the world. While these platforms offer unprecedented opportunities for connection and self-expression, they also raise significant concerns about privacy, mental health, and the spread of misinformation. Understanding both the benefits and the drawbacks is essential for navigating this complex environment responsibly.
+
+=== essay
+Climate change represents one of the most pressing challenges of the twenty-first century. Rising global temperatures, driven primarily by the burning of fossil fuels, are contributing to more frequent extreme weather events, melting ice caps, and rising sea levels. Addressing this crisis will require coordinated action from governments, businesses, and individuals alike, as well as a fundamental shift toward renewable energy sources.
+
+=== essay
+Education plays a crucial role in shaping both individuals and societies. Beyond providing knowledge and skills, it fosters critical thinking, creativity, and a sense of civic responsibility. However, access to quality education remains unequal across the globe, with millions of children still unable to attend school. Bridging this gap is not only a moral imperative but also a key driver of economic development.
+
+=== essay
+The rise of artificial intelligence has sparked both excitement and apprehension. On one hand, AI has the potential to revolutionize industries such as healthcare, transportation, and finance, improving efficiency and unlocking new possibilities. On the other hand, it raises important ethical questions regarding job displacement, algorithmic bias, and accountability. Striking the right balance will be critical in the years ahead.
+
+=== essay
+Reading offers far more than entertainment. It expands our vocabulary, improves concentration, and allows us to experience perspectives vastly different from our own. Studies have shown that regular reading can reduce stress and even slow cognitive decline in older adults. In an age dominated by short-form content, cultivating a habit of deep reading is more valuable than ever.
+
+=== essay
+Urbanization has transformed the way people live, work, and interact. As more individuals move to cities in search of economic opportunities, urban areas face mounting pressure on housing, transportation, and public services. Sustainable urban planning, which prioritizes green spaces, efficient public transit, and affordable housing, is essential to ensuring that cities remain livable for future generations.
+
+=== essay
+The importance of physical activity cannot be overstated. Regular exercise strengthens the heart, improves mood, and reduces the risk of chronic diseases such as diabetes and hypertension. Despite these well-documented benefits, many people struggle to incorporate movement into their busy schedules. Small, sustainable changes, such as walking during breaks or taking the stairs, can make a meaningful difference over time.
+
+=== essay
+Throughout history, the printing press stands out as one of the most transformative inventions. Developed by Johannes Gutenberg in the fifteenth century, it enabled the mass production of books, making knowledge accessible to a far wider audience. This democratization of information played a pivotal role in the Renaissance, the Reformation, and the Scientific Revolution, reshaping the course of human history.
+
+=== essay
+Friendship is a fundamental aspect of the human experience. True friends provide emotional support, share in our joys and sorrows, and help us grow as individuals. In an increasingly busy and digitally connected world, maintaining meaningful friendships requires intentional effort. Ultimately, the quality of our relationships often has a greater impact on our happiness than material success.
+
+=== essay
+Tourism can be a powerful engine for economic growth, particularly in developing regions. It creates jobs, supports local businesses, and encourages cultural exchange. However, unchecked tourism can also strain natural resources, disrupt local communities, and damage fragile ecosystems. Sustainable tourism practices, which balance economic benefits with environmental and social responsibility, offer a promising path forward.
+
+=== essay
+The concept of work-life balance has gained significant attention in recent years. As technology blurs the boundaries between professional and personal time, many employees find it increasingly difficult to disconnect. Organizations that prioritize flexibility, set clear expectations, and encourage time off tend to see higher levels of employee satisfaction, productivity, and long-term retention.
+
+=== essay
+Water scarcity is emerging as a critical global issue, affecting more than two billion people worldwide. Factors such as population growth, agricultural demand, and climate change are placing unprecedented stress on freshwater resources. Innovative solutions, including improved irrigation techniques, wastewater recycling, and desalination, will be essential in ensuring a reliable water supply for future generations.
+
+=== essay
+Music has a profound ability to influence our emotions and memories. A single song can transport us back to a specific moment in time, evoking feelings of joy, nostalgia, or even sadness. Research suggests that music activates multiple regions of the brain simultaneously, which may explain its powerful effects. Beyond personal enjoyment, music also serves as a unifying force that brings communities together.
+
+=== essay
+Space exploration has long captured the human imagination. From the first moon landing to the ongoing missions to Mars, each achievement has expanded our understanding of the universe and our place within it. Moreover, technologies developed for space programs have led to countless innovations on Earth, ranging from medical imaging to water purification systems.
+
+=== essay
+Effective leadership is not merely about authority; it is about inspiring others to achieve a shared vision. Great leaders communicate clearly, demonstrate empathy, and lead by example. They also recognize the importance of adaptability in the face of change. By fostering trust and empowering their teams, effective leaders create environments where individuals and organizations can thrive.
+
+=== essay
+Biodiversity is the foundation of healthy ecosystems. Every species, no matter how small, plays a role in maintaining the delicate balance of nature. Unfortunately, habitat destruction, pollution, and climate change are driving species to extinction at an alarming rate. Protecting biodiversity requires a combination of conservation efforts, sustainable land use, and greater public awareness.
+
+=== essay
+The history of the internet is a remarkable story of innovation and collaboration. What began as a small research network in the late 1960s has grown into a global infrastructure connecting billions of devices. Along the way, it has transformed communication, commerce, and culture. Yet as the internet continues to evolve, questions about privacy, security, and access remain at the forefront.
+
+=== essay
+Volunteering offers numerous benefits, both for the community and for the volunteers themselves. By giving their time and skills, volunteers help address pressing social issues and support vulnerable populations. At the same time, volunteering can build new skills, expand professional networks, and provide a profound sense of purpose. It is a powerful reminder that small actions can create meaningful change.
+
+=== essay
+Healthy eating is not about strict limitations or depriving oneself of favorite foods. Rather, it is about balance, variety, and moderation. A diet rich in fruits, vegetables, whole grains, and lean proteins provides the nutrients the body needs to function optimally. Making gradual, sustainable changes is often more effective than following restrictive diets that are difficult to maintain.
+
+=== essay
+The role of museums in modern society extends far beyond the preservation of artifacts. Today, museums serve as dynamic spaces for education, dialogue, and community engagement. Through interactive exhibits and digital initiatives, they make history and culture accessible to diverse audiences. In doing so, museums help foster a deeper understanding of our shared heritage and the world around us.
+
+=== essay
+Public libraries remain vital institutions in the digital age. While many people assume that the internet has made them obsolete, libraries continue to provide free access to books, technology, and educational programs. They also serve as safe, inclusive community spaces. For many individuals, particularly those from low-income backgrounds, libraries offer resources and opportunities that would otherwise be out of reach.
+
+=== casual-long
+So I finally tried that new cafe near the office today. Honestly it was pretty good! The coffee was strong but not bitter, and they have these little almond croissants that are kind of amazing. Only downside is it gets super crowded around lunch, so I'd go early if you want a table.
+
+=== casual-long
+Okay so quick update on the trip. Flights are booked for the 14th, we land around 6pm. I found an Airbnb near the old town that looks really nice and it's not too expensive. Still need to figure out the car rental but I'll sort that this week. Let me know if the dates work for you!
+
+=== casual-long
+I watched the documentary you recommended last night. It was really interesting, especially the part about the deep sea creatures. I had no idea some of them could live that long. A bit slow in the middle, but the ending was worth it. Do you have any other recommendations?
+
+=== casual-long
+Hey! Just wanted to say thanks again for helping me move on Sunday. I seriously couldn't have done it without you. The couch barely fit through the door lol. Dinner is on me next time, just let me know when you're free.
+
+=== casual-long
+Work has been kind of crazy lately. We've got a big deadline coming up and everyone's a bit stressed. My manager is nice though, which helps a lot. Hoping things calm down after next week so I can finally take a few days off and relax.
