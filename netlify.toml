@@ -1,0 +1,6 @@
+# ghost-check is a Python CLI, not a web app. Netlify publishes a live demo:
+# the HTML report generated from the bundled sample chat.
+# Settings here override the build command / publish directory set in the Netlify UI.
+[build]
+  command = "mkdir -p site && python ghost_check.py examples/sample_chat.txt -o site/index.html"
+  publish = "site"

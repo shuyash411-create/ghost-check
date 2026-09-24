@@ -1,3 +1,4 @@
 __pycache__/
 .venv/
 ghost-check-report.html
+site/
