@@ -1,0 +1,130 @@
+{
+  "documents": 20,
+  "correct": 15,
+  "human": 10,
+  "ai": 10,
+  "human_flagged": 0,
+  "ai_missed": 5,
+  "rows": [
+    {
+      "author": "human",
+      "file": "bawe_1301",
+      "score": 4.4988821697923737e-05,
+      "verdict": "No clear AI signs"
+    },
+    {
+      "author": "human",
+      "file": "bawe_133",
+      "score": 0.00015220235049017946,
+      "verdict": "No clear AI signs"
+    },
+    {
+      "author": "human",
+      "file": "bawe_1371",
+      "score": 0.04049815556958085,
+      "verdict": "No clear AI signs"
+    },
+    {
+      "author": "human",
+      "file": "bawe_318",
+      "score": 0.003317760085016763,
+      "verdict": "No clear AI signs"
+    },
+    {
+      "author": "human",
+      "file": "bawe_366",
+      "score": 0.01719126983265007,
+      "verdict": "No clear AI signs"
+    },
+    {
+      "author": "human",
+      "file": "bawe_647",
+      "score": 0.0012617901390936236,
+      "verdict": "No clear AI signs"
+    },
+    {
+      "author": "human",
+      "file": "ets_245",
+      "score": 0.027275534592790456,
+      "verdict": "No clear AI signs"
+    },
+    {
+      "author": "human",
+      "file": "ets_408",
+      "score": 0.0002273884863142798,
+      "verdict": "No clear AI signs"
+    },
+    {
+      "author": "human",
+      "file": "sotu_1965-Johnson-1",
+      "score": 0.07965502768328583,
+      "verdict": "No clear AI signs"
+    },
+    {
+      "author": "human",
+      "file": "sotu_1994-Clinton",
+      "score": 0.14795616844258,
+      "verdict": "No clear AI signs"
+    },
+    {
+      "author": "ai",
+      "file": "01_econ_minimum_wage",
+      "score": 0.12918986800480742,
+      "verdict": "No clear AI signs"
+    },
+    {
+      "author": "ai",
+      "file": "02_bio_antibiotic_resistance",
+      "score": 0.17448688356737294,
+      "verdict": "No clear AI signs"
+    },
+    {
+      "author": "ai",
+      "file": "03_lit_frankenstein",
+      "score": 0.6604105002998519,
+      "verdict": "Likely AI-written"
+    },
+    {
+      "author": "ai",
+      "file": "04_business_case_remote",
+      "score": 0.26701735524641496,
+      "verdict": "Possibly AI-written"
+    },
+    {
+      "author": "ai",
+      "file": "05_hist_printing_press",
+      "score": 0.47436589473946106,
+      "verdict": "Likely AI-written"
+    },
+    {
+      "author": "ai",
+      "file": "06_reflection_placement",
+      "score": 0.10859936155162098,
+      "verdict": "No clear AI signs"
+    },
+    {
+      "author": "ai",
+      "file": "07_cs_lab_report",
+      "score": 0.24779190385953795,
+      "verdict": "Possibly AI-written"
+    },
+    {
+      "author": "ai",
+      "file": "08_policy_cycling",
+      "score": 0.21206585250414683,
+      "verdict": "Possibly AI-written"
+    },
+    {
+      "author": "ai",
+      "file": "09_toefl_style_nonnative",
+      "score": 0.00826160546235873,
+      "verdict": "No clear AI signs"
+    },
+    {
+      "author": "ai",
+      "file": "10_psych_sleep_informal",
+      "score": 0.0008219322668142987,
+      "verdict": "No clear AI signs"
+    }
+  ]
+}
