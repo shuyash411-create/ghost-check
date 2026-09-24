@@ -1,6 +1,5 @@
 __pycache__/
 .venv/
-ghost-check-report.html
-eval/.cache/
+train/.cache/
 train/data/*.jsonl
 train/sanity/pdf/

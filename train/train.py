@@ -46,7 +46,11 @@ def vectorizer() -> FeatureUnion:
 
 
 def doc_scores(df: pd.DataFrame, probs: np.ndarray) -> pd.DataFrame:
-    d = df.assign(p=probs).groupby("doc").agg(p=("p", "mean"), label=("label", "first"), source=("source", "first"))
+    """Document score = word-weighted mean of its section scores, as in ghost_check.score_text()."""
+    n = df.text.str.split().str.len()
+    d = df.assign(pw=probs * n, n=n).groupby("doc").agg(pw=("pw", "sum"), n=("n", "sum"), label=("label", "first"),
+                                                         source=("source", "first"))
+    d["p"] = d.pw / d.n
     return d.reset_index()
 
 

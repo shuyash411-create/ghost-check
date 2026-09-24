@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ghost-check</title>
-<meta name="description" content="Paste text or drop a WhatsApp chat or PDF to see how AI-written it looks. Runs entirely in your browser.">
+<meta name="description" content="Estimate how likely an essay, report or assignment was written by AI. Runs entirely in your browser.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 3C9.9 3 6 7.6 6 13.5V28l3.3-2.5L12.7 28l3.3-2.5 3.3 2.5 3.4-2.5L26 28V13.5C26 7.6 22.1 3 16 3z' fill='%232a78d6'/%3E%3Ccircle cx='12.5' cy='14' r='2' fill='%23fff'/%3E%3Ccircle cx='19.5' cy='14' r='2' fill='%23fff'/%3E%3C/svg%3E">
 <style>
 :root {
@@ -27,18 +27,18 @@ main { max-width: 920px; margin: 0 auto; padding: 32px 16px 80px; }
 h1 { font-size: 28px; line-height: 1.2; margin: 0; letter-spacing: -.01em; display: flex; align-items: center; gap: 10px; }
 h1 svg { width: 30px; height: 30px; flex: none; }
 h2 { font-size: 18px; margin: 0 0 12px; }
-h3 { font-size: 16px; margin: 0; }
-.lede { color: var(--ink2); margin: 8px 0 0; max-width: 640px; }
+h3 { font-size: 16px; margin: 0; overflow-wrap: anywhere; }
+.lede { color: var(--ink2); margin: 8px 0 0; max-width: 660px; }
 .private { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; color: var(--ink2); margin-top: 10px; }
-.private svg { width: 14px; height: 14px; }
+.private svg { width: 14px; height: 14px; flex: none; }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px; margin-top: 20px; box-shadow: var(--shadow); }
 .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin: -4px 0 16px; }
 .tab { appearance: none; border: 0; background: none; color: var(--ink2); font: inherit; font-weight: 600; padding: 8px 12px;
   border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; }
 .tab[aria-selected="true"] { color: var(--ink); border-color: var(--accent); }
-textarea { width: 100%; min-height: 200px; resize: vertical; font: inherit; color: var(--ink); background: var(--bg);
+textarea { width: 100%; min-height: 220px; resize: vertical; font: inherit; color: var(--ink); background: var(--bg);
   border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
-textarea:focus, .drop:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+textarea:focus, .drop:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .drop { border: 2px dashed var(--line); border-radius: 10px; padding: 36px 16px; text-align: center; color: var(--ink2); cursor: pointer; background: var(--bg); }
 .drop.over { border-color: var(--accent); background: var(--accent-soft); }
 .drop strong { color: var(--ink); }
@@ -55,65 +55,50 @@ textarea:focus, .drop:focus-visible, button:focus-visible, select:focus-visible,
 .spacer { flex: 1; }
 .muted { color: var(--ink2); }
 .small { font-size: 13px; }
-details.opts { margin-top: 14px; }
-details.opts summary { cursor: pointer; color: var(--ink2); font-size: 14px; }
-.optgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-top: 12px; }
-.optgrid label { display: grid; gap: 4px; font-size: 13px; color: var(--ink2); }
-.optgrid input[type=range] { width: 100%; accent-color: var(--accent); }
-.optgrid select, .optgrid input[type=number] { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
-.check { display: flex !important; grid-auto-flow: column; align-items: center; gap: 8px !important; }
 .status { margin: 12px 0 0; font-size: 14px; color: var(--ink2); }
 .status:empty { display: none; }
 .status.error { color: var(--highink); }
 
-/* results */
 .hero { display: grid; grid-template-columns: auto 1fr; gap: 24px; align-items: center; }
-.dial { width: 148px; height: 148px; position: relative; }
+.dial { width: 136px; height: 136px; position: relative; }
 .dial svg { width: 100%; height: 100%; transform: rotate(-90deg); }
 .dial .val { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
-.dial .num { font-size: 40px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
-.dial .of { font-size: 13px; color: var(--ink2); }
-.verdict { font-size: 22px; font-weight: 700; margin: 0; }
-.stats { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 8px; color: var(--ink2); font-size: 14px; }
-.stats b { color: var(--ink); font-variant-numeric: tabular-nums; }
-.feat { display: grid; gap: 12px; margin-top: 20px; }
-.feat .f { display: grid; grid-template-columns: minmax(150px, 210px) 1fr 40px; gap: 12px; align-items: center; }
-.feat .name { font-size: 14px; }
-.feat .name small { display: block; color: var(--ink3); font-size: 12px; line-height: 1.35; }
+.dial .num { font-size: 38px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.dial .of { font-size: 12px; color: var(--ink2); }
+.verdict { font-size: 22px; font-weight: 700; margin: 2px 0 0; }
+.reason { margin: 8px 0 0; color: var(--ink2); }
+.hint { margin: 14px 0 0; padding: 10px 12px; border-radius: 8px; background: var(--bg); border: 1px solid var(--line); font-size: 14px; color: var(--ink2); }
+.scale { position: relative; height: 10px; border-radius: 5px; background: var(--track); margin: 22px 0 6px; }
+.scale .zone { position: absolute; top: 0; bottom: 0; }
+.scale .z1 { background: var(--low); left: 0; border-radius: 5px 0 0 5px; }
+.scale .z2 { background: var(--mid); }
+.scale .z3 { background: var(--high); right: 0; border-radius: 0 5px 5px 0; }
+.scale .marker { position: absolute; top: -5px; width: 4px; height: 20px; margin-left: -2px; border-radius: 2px; background: var(--ink); }
+.scale-labels { position: relative; height: 16px; font-size: 11px; color: var(--ink3); }
+.scale-labels span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.scale-labels i { font-style: normal; }
+.scale-labels .short { display: none; }
+.sections { display: grid; gap: 6px; margin-top: 16px; }
+.sec { display: grid; grid-template-columns: 90px 1fr 40px; gap: 10px; align-items: center; font-size: 13px; color: var(--ink2); }
 .bar { height: 10px; border-radius: 5px; background: var(--track); overflow: hidden; }
 .bar > i { display: block; height: 100%; background: var(--accent); border-radius: 5px; }
-.feat .v { text-align: right; font-variant-numeric: tabular-nums; font-size: 14px; }
-.chart { display: grid; gap: 10px; }
-.chart .c { display: grid; grid-template-columns: minmax(90px, 160px) 1fr 216px; gap: 12px; align-items: center; text-decoration: none; color: inherit; border-radius: 6px; padding: 2px 0; }
-.chart .c:hover .bar > i { filter: brightness(1.1); }
-.chart .c .who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
-.chart .bar { height: 18px; border-radius: 4px; }
-.chart .bar > i { border-radius: 0 4px 4px 0; }
-.chart .v { font-size: 13px; color: var(--ink2); font-variant-numeric: tabular-nums; }
-.chart .v b { color: var(--ink); }
+.sec .v { text-align: right; font-variant-numeric: tabular-nums; }
+details.more { margin-top: 12px; }
+details.more summary { cursor: pointer; color: var(--ink2); font-size: 14px; }
+.sectext { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.sectext li { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.sectext li b { display: block; font-size: 12px; color: var(--ink3); margin-bottom: 2px; }
+
 .scroll { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; font-size: 14px; }
 th, td { border-bottom: 1px solid var(--line); padding: 8px; text-align: left; vertical-align: top; }
 th { font-size: 12px; color: var(--ink2); font-weight: 600; white-space: nowrap; }
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.pill { display: inline-block; min-width: 38px; text-align: center; padding: 1px 8px; border-radius: 999px; font-weight: 700; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+td a { color: inherit; }
+.pill { display: inline-block; text-align: center; padding: 1px 8px; border-radius: 999px; font-weight: 700; font-size: 12px; white-space: nowrap; }
 .pill.low { background: var(--low); color: var(--lowink); } .pill.mid { background: var(--mid); color: var(--midink); }
-.pill.high { background: var(--high); color: var(--highink); } .pill.na { color: var(--ink3); }
-details.sender { border-top: 1px solid var(--line); padding: 14px 0 0; margin-top: 14px; }
-details.sender:first-of-type { border-top: 0; margin-top: 0; padding-top: 0; }
-details.sender > summary { cursor: pointer; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; list-style: none; }
-details.sender > summary::-webkit-details-marker { display: none; }
-details.sender > summary::before { content: "▸"; color: var(--ink3); transition: transform .15s; }
-details.sender[open] > summary::before { transform: rotate(90deg); }
-.msgs { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 10px; }
-.msg { display: grid; grid-template-columns: auto 1fr; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; }
-.msg > .pill { align-self: start; justify-self: start; margin-top: 2px; }
-.msg .text { white-space: pre-wrap; overflow-wrap: anywhere; }
-.msg .meta { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; font-size: 12px; color: var(--ink3); }
-.msg .meta span b { color: var(--ink2); font-weight: 600; font-variant-numeric: tabular-nums; }
-.note { font-size: 13px; color: var(--ink2); margin: 16px 0 0; }
-footer { margin-top: 32px; font-size: 13px; color: var(--ink3); }
-footer a { color: inherit; }
+.pill.high { background: var(--high); color: var(--highink); } .pill.na { color: var(--ink3); border: 1px solid var(--line); }
+
 .about > summary { cursor: pointer; list-style: none; }
 .about > summary::-webkit-details-marker { display: none; }
 .about > summary h2 { display: inline; margin: 0; }
@@ -123,23 +108,16 @@ footer a { color: inherit; }
 .about ul { padding-left: 18px; }
 .about li { margin: 6px 0; }
 table.acc { margin: 12px 0; }
-table.acc th.grp { font-size: 12px; color: var(--ink); padding-top: 14px; text-align: left; }
-.hint { margin: 10px 0 0; padding: 10px 12px; border-radius: 8px; background: var(--bg); border: 1px solid var(--line); font-size: 14px; color: var(--ink2); }
-.pill.na { border: 1px solid var(--line); }
-.chart .track { position: relative; }
-.chart .mark { position: absolute; top: -3px; bottom: -3px; width: 0; border-left: 1px dashed var(--ink3); }
-.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--ink2); margin: 10px 0 0; }
-.legend i { display: inline-block; width: 0; height: 10px; border-left: 1px dashed var(--ink3); margin-right: 4px; vertical-align: middle; }
+table.acc th.grp { font-size: 12px; color: var(--ink); padding-top: 14px; }
+footer { margin-top: 32px; font-size: 13px; color: var(--ink3); }
+footer a { color: inherit; }
 [hidden] { display: none !important; }
 @media (max-width: 600px) {
   main { padding-top: 20px; }
   .hero { grid-template-columns: 1fr; justify-items: center; text-align: center; }
-  .stats { justify-content: center; }
-  .feat .f { grid-template-columns: 1fr 40px; }
-  .feat .f .bar { grid-column: 1 / -1; grid-row: 2; }
-  .chart .c { grid-template-columns: 1fr auto; }
-  .chart .c .track { grid-column: 1 / -1; grid-row: 2; }
-  .msg { grid-template-columns: 1fr; }
+  .sec { grid-template-columns: 70px 1fr 32px; }
+  .scale-labels .long { display: none; }
+  .scale-labels .short { display: inline; }
 }
 </style>
 </head>
@@ -147,7 +125,7 @@ table.acc th.grp { font-size: 12px; color: var(--ink); padding-top: 14px; text-a
 <main>
   <header>
     <h1><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3C9.9 3 6 7.6 6 13.5V28l3.3-2.5L12.7 28l3.3-2.5 3.3 2.5 3.4-2.5L26 28V13.5C26 7.6 22.1 3 16 3z" fill="var(--accent)"/><circle cx="12.5" cy="14" r="2" fill="var(--card)"/><circle cx="19.5" cy="14" r="2" fill="var(--card)"/></svg>ghost-check</h1>
-    <p class="lede">Paste any text, or drop a WhatsApp chat export or a PDF, to see how AI-written it looks. Chats are scored per person.</p>
+    <p class="lede">Paste an essay, report or assignment, or drop a PDF, to see how likely it was written by AI. A classifier trained on about 18,000 human and AI documents scores each ~200-word section.</p>
     <p class="private"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 7V5a4 4 0 1 1 8 0v2h.5A1.5 1.5 0 0 1 14 8.5v5a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 13.5v-5A1.5 1.5 0 0 1 3.5 7H4zm2 0h4V5a2 2 0 1 0-4 0v2z" fill="currentColor"/></svg>Runs entirely in your browser. Nothing you paste or upload leaves your device.</p>
   </header>
 
@@ -158,36 +136,26 @@ table.acc th.grp { font-size: 12px; color: var(--ink); padding-top: 14px; text-a
     </div>
 
     <div id="panel-text" role="tabpanel" aria-labelledby="tab-text">
-      <label for="text" class="muted small">Text, an email, an essay, or a pasted WhatsApp chat</label>
+      <label for="text" class="muted small">An essay, report, assignment or article (at least 80 words; 250+ is better)</label>
       <textarea id="text" placeholder="Paste text here…"></textarea>
     </div>
 
     <div id="panel-file" role="tabpanel" aria-labelledby="tab-file" hidden>
       <div class="drop" id="drop" tabindex="0" role="button" aria-label="Choose files or drop them here">
         <strong>Drop files here</strong> or click to choose
-        <small>WhatsApp export (.txt or .zip), PDF, or any .txt / .md file. You can add several.</small>
+        <small>PDF, .txt or .md. You can add several to compare them.</small>
       </div>
-      <input type="file" id="file" multiple accept=".txt,.md,.zip,.pdf,text/plain,application/pdf,application/zip" hidden>
+      <input type="file" id="file" multiple accept=".pdf,.txt,.md,text/plain,application/pdf" hidden>
       <ul class="files" id="files"></ul>
     </div>
 
     <div class="row">
-      <button class="btn primary" id="analyze">Check for AI</button>
+      <button class="btn primary" id="analyze" disabled>Loading model…</button>
       <span class="spacer"></span>
       <span class="muted small">Try an example:</span>
-      <button class="btn link" id="ex-chat">WhatsApp chat</button>
-      <button class="btn link" id="ex-ai">AI text</button>
-      <button class="btn link" id="ex-human">Human text</button>
+      <button class="btn link" id="ex-ai">AI essay</button>
+      <button class="btn link" id="ex-human">Human speech (1994)</button>
     </div>
-
-    <details class="opts">
-      <summary>Options</summary>
-      <div class="optgrid">
-        <label>Treat input as
-          <select id="mode"><option value="auto">Auto-detect</option><option value="chat">WhatsApp chat</option><option value="document">Document</option></select></label>
-        <label class="check"><input type="checkbox" id="bypage"> Score each PDF page separately</label>
-      </div>
-    </details>
     <p class="status" id="status" role="status" aria-live="polite"></p>
   </section>
 
@@ -195,36 +163,13 @@ table.acc th.grp { font-size: 12px; color: var(--ink); padding-top: 14px; text-a
 
   <details class="card about" id="accuracy">
     <summary><h2>How accurate is this?</h2></summary>
-    <p><b>No AI detector is 100% accurate</b>, and any tool that claims to be is not telling the truth. ghost-check
-      is tuned to be <b>careful</b>: when it says “Likely AI-written”, it is rarely wrong, but it will miss some AI text.</p>
-    <table class="acc">
-      <thead><tr><th>Tested on</th><th class="num">Texts</th><th class="num">“Likely AI”</th><th class="num">At least “Some AI signs”</th></tr></thead>
-      <tbody>
-        <tr><th colspan="4" class="grp">Human writing from before AI chatbots existed (every flag is a false alarm)</th></tr>
-        <tr><td>Published prose, 1961 (news, academic, fiction)</td><td class="num">1,450</td><td class="num">0.8%</td><td class="num">4.8%</td></tr>
-        <tr><td>Web text, 2000s (forums, reviews, quotes)</td><td class="num">298</td><td class="num">1.7%</td><td class="num">6.4%</td></tr>
-        <tr><td>People with 10 texts each, judged per person</td><td class="num">970</td><td class="num">0%</td><td class="num">7.7%</td></tr>
-        <tr><th colspan="4" class="grp">AI-written test text (share caught)</th></tr>
-        <tr><td>Assistant-style answers</td><td class="num">25</td><td class="num">48%</td><td class="num">80%</td></tr>
-        <tr><td>Essays</td><td class="num">21</td><td class="num">48%</td><td class="num">76%</td></tr>
-        <tr><td>Emails</td><td class="num">12</td><td class="num">25%</td><td class="num">50%</td></tr>
-        <tr><td>AI told to write casually</td><td class="num">12</td><td class="num">0%</td><td class="num">17%</td></tr>
-      </tbody>
-    </table>
-    <ul>
-      <li><b>Short texts can’t be judged.</b> Under 30 words there isn’t enough evidence either way, so you get “Too short to judge”.</li>
-      <li><b>“No clear AI signs” is not proof a human wrote it.</b> AI that is prompted to sound casual, or edited by a person, usually passes.</li>
-      <li><b>People are judged carefully.</b> In a chat, someone is only called likely AI if at least two of their messages are, so a single false alarm can’t label a person.</li>
-      <li><b>Formal writing can raise the score.</b> Academic or very polished human writing sometimes shows “Some AI signs”.</li>
-      <li>The AI test set is small and written by one AI model, so the AI numbers are indicative. The human numbers come from real texts and are reliable.</li>
-    </ul>
-    <p class="muted small">Method, data and code: <a href="https://github.com/shuyash411-create/ghost-check/tree/main/eval">eval/</a> in the repository.</p>
+    <div id="accuracy-body"><p class="muted">Loading…</p></div>
   </details>
 
   <footer>
-    ghost-check looks at writing style: AI-typical words and phrases, formulaic transitions, word length and sentence rhythm.
-    It is a signal to look closer, not proof. <a href="#accuracy" id="acc-link">How accurate is it?</a>
-    · <a href="https://github.com/shuyash411-create/ghost-check">Source &amp; CLI</a>
+    A statistical estimate, not proof: never use it alone to accuse someone.
+    <a href="#accuracy" id="acc-link">How accurate is it?</a>
+    · <a href="https://github.com/shuyash411-create/ghost-check">Source, CLI and training code</a>
   </footer>
 </main>
 <script src="ghost-check.js"></script>

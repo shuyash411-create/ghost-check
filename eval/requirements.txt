@@ -1,7 +1,0 @@
-# Web-app heuristic calibration (eval/, web/heuristic.py, tests/check_parity.py)
-pandas>=2.0
-matplotlib>=3.7
-numpy
-scipy
-scikit-learn
-pypdf>=4.0

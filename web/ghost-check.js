@@ -1,8 +1,9 @@
-/* ghost-check scoring engine for the browser.
+/* ghost-check classifier for the browser.
  *
- * A line-for-line port of the parsing and scoring in ghost_check.py, so the
- * web app and the CLI give the same numbers. tests/check_parity.py compares
- * the two; keep them in sync when changing either.
+ * A port of ghost_check.py's scoring: the same text normalisation and ~200-word
+ * sections, scikit-learn's word (1-2 gram) and char_wb (3-5 gram) TF-IDF, and
+ * the logistic regression, using the weights exported by train/export_web.py.
+ * tests/check_parity.py checks that this gives the same scores as the CLI.
  *
  * Works as a browser global (window.GhostCheck) and as a CommonJS module.
  */
@@ -12,373 +13,170 @@
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
-  // ------------------------------------------------------------------------
-  // Parsing
-  // ------------------------------------------------------------------------
+  // ------------------------------------------------------------------ text
 
-  const DATE = String.raw`(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{2,4})`;
-  const TIME = String.raw`(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\s*([AaPp])\.?\s*[Mm]\.?)?`;
-  // Android: "31/12/23, 9:15 pm - Name: text"
-  const ANDROID_RE = new RegExp(String.raw`^${DATE},?\s+${TIME}\s+[-–]\s+(.*)$`, "u");
-  // iOS:     "[31/12/2023, 21:15:03] Name: text"
-  const IOS_RE = new RegExp(String.raw`^\[${DATE},?\s+${TIME}\]\s*(.*)$`, "u");
+  const QUOTES = {
+    "‘": "'", "’": "'", "‚": "'", "‛": "'", "“": '"', "”": '"', "„": '"',
+    "–": "-", "—": "-", "―": "-", "…": "...", " ": " ", " ": " ",
+  };
+  const QUOTES_RE = new RegExp(`[${Object.keys(QUOTES).join("")}]`, "gu");
 
-  const INVISIBLE_RE = /[\u200e\u200f\u202a-\u202e\ufeff]/g;
-  const SPACES_RE = /[\u202f\u00a0\u2007]/g;
-  const LINE_SPLIT_RE = /\r\n|[\n\r\u000b\u000c\u001c-\u001e\u0085\u2028\u2029]/;
-
-  const SKIP_BODIES = new RegExp(
-    String.raw`^(<media omitted>|<attached:.*>|.*\b(image|video|audio|sticker|gif|document|contact card) omitted` +
-      String.raw`|this message was deleted|you deleted this message|null|missed (voice|video) call` +
-      String.raw`|waiting for this message.*|poll:.*)$`,
-    "is"
-  );
-  const EDITED_SUFFIX = /\s*<this message was edited>\s*$/i;
-
-  const clean = (line) => line.replace(INVISIBLE_RE, "").replace(SPACES_RE, " ");
-  const match = (line) => ANDROID_RE.exec(line) || IOS_RE.exec(line);
-
-  function detectDayfirst(lines) {
-    for (const line of lines) {
-      const m = match(line);
-      if (!m) continue;
-      const a = +m[1], b = +m[2];
-      if (a > 12) return true;
-      if (b > 12) return false;
-    }
-    return true;
-  }
-
-  function toDate(m, dayfirst) {
-    const [a, b, y, hh, mm, ss, ampm] = m.slice(1, 8);
-    const day = dayfirst ? +a : +b;
-    const month = dayfirst ? +b : +a;
-    const year = +y + (y.length === 2 ? 2000 : 0);
-    let hour = +hh;
-    if (ampm) {
-      const p = ampm.toLowerCase();
-      if (p === "p" && hour !== 12) hour += 12;
-      else if (p === "a" && hour === 12) hour = 0;
-    }
-    const d = new Date(year, month - 1, day, hour, +mm, +(ss || 0));
-    const valid = d.getFullYear() === year && d.getMonth() === month - 1 && d.getDate() === day &&
-      hour < 24 && +mm < 60 && +(ss || 0) < 60;
-    return valid ? d : null;
-  }
-
-  function splitLines(text) {
-    const lines = text.split(LINE_SPLIT_RE);
-    if (lines.length && lines[lines.length - 1] === "") lines.pop();
-    return lines;
-  }
-
-  /** WhatsApp export -> [{sender, timestamp, message, source}] */
-  function parseWhatsApp(text, source, dayfirst) {
-    const lines = splitLines(text).map(clean);
-    if (dayfirst == null) dayfirst = detectDayfirst(lines);
-
-    const records = [];
-    let current = null;
-    for (const line of lines) {
-      const m = match(line);
-      if (m) {
-        if (current) records.push(current);
-        current = null;
-        const rest = m[8];
-        const i = rest.indexOf(": ");
-        if (i < 0) continue; // system message
-        current = { sender: rest.slice(0, i).trim(), timestamp: toDate(m, dayfirst), message: rest.slice(i + 2), source, kind: "chat" };
-      } else if (current) {
-        current.message += "\n" + line;
-      }
-    }
-    if (current) records.push(current);
-
-    return records.filter((r) => {
-      r.message = r.message.replace(EDITED_SUFFIX, "").trim();
-      return r.message && !SKIP_BODIES.test(r.message);
-    });
-  }
-
-  const pySplit = (s) => s.split(/\s+/).filter(Boolean);
-
-  /** Split free text into paragraph-sized chunks. */
-  function paragraphs(text, maxWords = 180) {
+  /** Same as ghost_check.normalise(). */
+  function normalise(text) {
+    text = text.normalize("NFKC").replace(QUOTES_RE, (c) => QUOTES[c]);
     text = text.replace(/-\n(?=[a-z])/g, "");
+    text = text.replace(/[ \t\r\f\v]+/g, " ");
+    text = text.replace(/\s*\n\s*/g, "\n");
+    return text.trim();
+  }
+
+  const splitWords = (s) => s.split(/\s+/).filter(Boolean);
+  const SENT = /(?<=[.!?])\s+/u; // sentence ends only; PDF line wraps are not boundaries
+
+  /** Same as ghost_check.chunk_text(). */
+  function chunkText(text, target = 200, minimum = 60) {
     const chunks = [];
-    for (let para of text.split(/\n\s*\n/)) {
-      para = para.replace(/\s*\n\s*/g, " ").trim();
-      if (!para) continue;
-      if (pySplit(para).length <= maxWords) {
-        chunks.push(para);
-        continue;
+    let buf = [], n = 0;
+    for (let sent of text.split(SENT)) {
+      sent = sent.trim();
+      if (!sent) continue;
+      buf.push(sent);
+      n += splitWords(sent).length;
+      if (n >= target) {
+        chunks.push(buf);
+        buf = [];
+        n = 0;
       }
-      let buf = [];
-      for (const sent of para.split(/(?<=[.!?])\s+/)) {
-        buf.push(sent);
-        if (buf.reduce((n, s) => n + pySplit(s).length, 0) >= maxWords * 0.75) {
-          chunks.push(buf.join(" "));
-          buf = [];
-        }
-      }
-      if (buf.length) chunks.push(buf.join(" "));
     }
-    return chunks;
-  }
-
-  function stem(name) {
-    const base = name.split(/[\\/]/).pop();
-    const i = base.lastIndexOf(".");
-    return i > 0 ? base.slice(0, i) : base;
-  }
-
-  /** pages: array of page texts */
-  function parseDocument(pages, source, byPage, label) {
-    const name = label || stem(source);
-    const records = [];
-    pages.forEach((page, i) => {
-      const sender = byPage ? `${name} · p.${i + 1}` : name;
-      for (const p of paragraphs(page)) records.push({ sender, timestamp: null, message: p, source, kind: "document" });
-    });
-    return records;
-  }
-
-  /** Auto-detect chat vs document, as the CLI does. */
-  function load(pages, source, { mode = "auto", dayfirst = null, byPage = false, label } = {}) {
-    const text = pages.join("\n");
-    if (mode === "auto" || mode === "chat") {
-      const chat = parseWhatsApp(text, source, dayfirst);
-      if (mode === "chat" || chat.length >= 3) return { records: chat, mode: "chat" };
+    if (buf.length) {
+      if (chunks.length && n < minimum) chunks[chunks.length - 1].push(...buf);
+      else chunks.push(buf);
     }
-    return { records: parseDocument(pages, source, byPage, label), mode: "document" };
+    return chunks.map((c) => c.join(" "));
   }
 
-  // ------------------------------------------------------------------------
-  // Scoring (model v2, same as ghost_check.py; see "Accuracy" in README.md)
-  // ------------------------------------------------------------------------
+  // ------------------------------------------------------------------ features
 
-  const AI_VOCAB = new Set(`
-delve delves delving delved showcase showcases showcasing underscore underscores underscoring
-crucial crucially pivotal intricate intricacies meticulous meticulously comprehensive notably
-noteworthy commendable realm realms landscape tapestry foster fosters fostering enhance enhances
-enhancing bolster streamline streamlines leverage leveraging seamless seamlessly robust nuanced
-multifaceted holistic paramount invaluable unwavering embark navigate navigating elevate empower
-empowers empowering unlock unlocking harness vibrant testament profound additionally furthermore
-moreover ultimately overall essential vital ensure ensures ensuring potential insights valuable
-effectively prioritize resonate dynamic innovative transformative strive facilitate optimal
-significant significantly journey thrive`.split(/\s+/).filter(Boolean));
+  // scikit-learn token_pattern r"(?u)\b\w+\b|[^\w\s]". Python's \w is letters, numbers and
+  // underscore (not combining marks), so \b\w+\b is just a maximal run of those.
+  const TOKEN = /[\p{L}\p{N}_]+|[^\p{L}\p{N}_\s]/gu;
 
-  const STOCK_PHRASES = new RegExp(
-    String.raw`it'?s (?:important|worth|essential|crucial) to|it is (?:important|worth noting|essential|crucial)` +
-      String.raw`|plays? an? (?:crucial|vital|key|pivotal|significant) role|in today'?s|whether you'?re` +
-      String.raw`|i hope this|hope this (?:message|email) finds you|let me know if|feel free to|happy to help` +
-      String.raw`|here'?s (?:a|an|some|how|what)\b|here are (?:some|a few)|great question|i understand (?:your|that)` +
-      String.raw`|on the other hand|a wide range of|when it comes to|not only\b[^.]*\bbut also|by doing so` +
-      String.raw`|don'?t hesitate|rest assured|thank you for reaching out|i'?d be happy to|as an ai|as a language model` +
-      String.raw`|can make a (?:big|meaningful|significant|real) difference|in the long run|key (?:factors|takeaways)` +
-      String.raw`|a testament to|that being said|(?:certainly|absolutely|of course)!`,
-    "g"
-  );
-
-  const TRANSITIONS = new RegExp(
-    String.raw`^(?:additionally|furthermore|moreover|however|overall|ultimately|in conclusion|in summary` +
-      String.raw`|in addition|firstly|secondly|finally|lastly|on the other hand|as a result|by doing so)\b`,
-    "i"
-  );
-
-  // Fitted by eval/fit.py.
-  const MODEL = {
-    intercept: -1.249,
-    word_length: 0.59,
-    rhythm: 0.541,
-    ai_vocab: 1.741,
-    stock_phrases: 2.039,
-    transitions: 0.448,
-  };
-  const LIKELY_AI = 83.8; // ~1% of human texts at or above
-  const POSSIBLE_AI = 63.7; // ~5% of human texts at or above
-  const MIN_WORDS = 6;
-  const MIN_VERDICT_WORDS = 30;
-
-  const FEATURES = ["word_length", "rhythm", "ai_vocab", "stock_phrases", "transitions"];
-  const FEATURE_LABELS = {
-    word_length: "Long words",
-    rhythm: "Even sentence rhythm",
-    ai_vocab: "AI-typical words",
-    stock_phrases: "Stock AI phrases",
-    transitions: "Formulaic transitions",
-  };
-  const FEATURE_HELP = {
-    word_length: "AI vocabulary skews toward longer words.",
-    rhythm: "AI writes evenly sized sentences with little variation (low variance and burstiness).",
-    ai_vocab: "Words LLMs overuse, like “delve”, “crucial”, “foster”, “additionally”.",
-    stock_phrases: "Phrases like “it's worth noting”, “feel free to”, “plays a crucial role”.",
-    transitions: "Sentences opening with “Furthermore”, “Additionally”, “Ultimately”…",
-  };
-  const VERDICTS = {
-    ai: "Likely AI-written",
-    possible: "Some AI signs",
-    none: "No clear AI signs",
-    inconclusive: "Too short to judge",
-  };
-
-  const EDGE = new Set([...".,;:!?—–-()\"'’“”…*_~`[]{}<>"]);
-  const clamp = (x) => Math.max(0, Math.min(1, x));
-  const isAlpha = (ch) => /\p{L}/u.test(ch);
-  const cpLen = (s) => [...s].length;
-  const mean = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
-  const pstdev = (xs) => {
-    const m = mean(xs);
-    return Math.sqrt(mean(xs.map((x) => (x - m) ** 2)));
-  };
-
-  function stripEdge(tok) {
-    const cs = [...tok];
-    let i = 0, j = cs.length;
-    while (i < j && EDGE.has(cs[i])) i++;
-    while (j > i && EDGE.has(cs[j - 1])) j--;
-    return cs.slice(i, j).join("");
+  function wordNgrams(text) {
+    const toks = text.toLowerCase().match(TOKEN) || [];
+    const out = toks.slice();
+    for (let i = 0; i + 1 < toks.length; i++) out.push(toks[i] + " " + toks[i + 1]);
+    return out;
   }
 
-  function words(text) {
+  // scikit-learn analyzer="char_wb", ngram_range=(3, 5)
+  function charWbNgrams(text, minN = 3, maxN = 5) {
     const out = [];
-    for (let tok of pySplit(text)) {
-      tok = stripEdge(tok);
-      if ([...tok].some(isAlpha)) out.push(tok);
+    for (const word of text.replace(/\s\s+/g, " ").split(/\s+/).filter(Boolean)) {
+      const w = [" ", ...word, " "];
+      for (let n = minN; n <= maxN; n++) {
+        let offset = 0;
+        out.push(w.slice(offset, offset + n).join(""));
+        while (offset + n < w.length) {
+          offset += 1;
+          out.push(w.slice(offset, offset + n).join(""));
+        }
+        if (offset === 0) break;
+      }
     }
     return out;
   }
 
-  const SENT_SPLIT = /(?<=[.!?…])\s+|\n+/u;
-  const sentences = (text) => text.split(SENT_SPLIT).map((p) => p.trim()).filter((p) => words(p).length);
-
-  function scoreFeatures(text) {
-    const ws = words(text);
-    const n = ws.length;
-    const sents = sentences(text);
-    const lengths = sents.map((s) => words(s).length);
-    const f = { words: n, sentences: sents.length };
-
-    f.word_length = n ? clamp((mean(ws.map(cpLen)) - 3.6) / 1.6) : NaN;
-
-    if (lengths.length >= 2) {
-      const m = mean(lengths);
-      const uniform = clamp(1 - pstdev(lengths) / m / 0.8);
-      if (lengths.length >= 3) {
-        const jumps = mean(lengths.slice(1).map((b, i) => Math.abs(lengths[i] - b)));
-        f.rhythm = (uniform + clamp(1 - jumps / m / 0.9)) / 2;
-      } else f.rhythm = uniform;
-    } else f.rhythm = NaN;
-
-    const low = text.toLowerCase().replace(/’/g, "'");
-    f.ai_vocab = n ? (100 * ws.filter((w) => AI_VOCAB.has(w.toLowerCase().replace(/’/g, "'"))).length) / n : NaN;
-    f.stock_phrases = (low.match(STOCK_PHRASES) || []).length;
-    f.transitions = sents.length ? sents.filter((s) => TRANSITIONS.test(s)).length / sents.length : NaN;
-    return f;
-  }
-
-  function modelInputs(f) {
-    const z = (v) => (Number.isNaN(v) ? 0 : v);
-    return [
-      z(f.word_length),
-      Number.isNaN(f.rhythm) ? 0.5 : f.rhythm,
-      Number.isNaN(f.ai_vocab) ? 0 : Math.log1p(f.ai_vocab),
-      Math.min(f.stock_phrases, 3),
-      z(f.transitions),
-    ];
-  }
-
-  function modelScore(f) {
-    const x = modelInputs(f);
-    const z = FEATURES.reduce((acc, k, i) => acc + MODEL[k] * x[i], MODEL.intercept);
-    return 100 / (1 + Math.exp(-z));
-  }
-
-  /** Feature on a 0-100 "how AI-like" scale for bars and tables. */
-  function displayValue(key, v) {
-    if (v == null || Number.isNaN(v)) return NaN;
-    if (key === "ai_vocab" || key === "stock_phrases") return Math.min(100, (100 * v) / 3);
-    return 100 * v;
-  }
-
-  function verdict(score, nWords) {
-    let key;
-    if (nWords < MIN_VERDICT_WORDS || Number.isNaN(score)) key = "inconclusive";
-    else if (score >= LIKELY_AI) key = "ai";
-    else if (score >= POSSIBLE_AI) key = "possible";
-    else key = "none";
-    return { key, label: VERDICTS[key] };
-  }
-
-  /** A sender needs two "Likely AI" messages (and 20% of those judged) to be called likely AI. */
-  function personVerdict(judged, likely, possible) {
-    let key;
-    if (likely >= 2 && likely / judged >= 0.2) key = "ai";
-    else if (likely >= 1 || (judged && possible / judged >= 0.3)) key = "possible";
-    else if (judged < 2) key = "inconclusive";
-    else key = "none";
-    return { key, label: key === "inconclusive" ? "Too few long messages to judge" : VERDICTS[key] };
-  }
-
-  /** Adds features, score and verdict to each record (in place). */
-  function scoreRecords(records, minWords = MIN_WORDS) {
-    for (const r of records) {
-      Object.assign(r, scoreFeatures(r.message));
-      r.scored = r.words >= minWords;
-      r.score = r.scored ? modelScore(r) : NaN;
-      const v = r.scored ? verdict(r.score, r.words) : { key: "skipped", label: "Not scored" };
-      r.verdict = v.key;
-      r.verdict_label = v.label;
+  /** Sparse TF-IDF row (sublinear tf, l2-normalised) as Map<column, value>. */
+  function tfidf(grams, vocab, idf) {
+    const tf = new Map();
+    for (const g of grams) {
+      const j = vocab.get(g);
+      if (j !== undefined) tf.set(j, (tf.get(j) || 0) + 1);
     }
-    return records;
+    let norm = 0;
+    for (const [j, c] of tf) {
+      const v = (1 + Math.log(c)) * idf[j];
+      tf.set(j, v);
+      norm += v * v;
+    }
+    norm = Math.sqrt(norm);
+    if (norm > 0) for (const [j, v] of tf) tf.set(j, v / norm);
+    return tf;
   }
 
-  const ORDER = { ai: 0, possible: 1, none: 2, inconclusive: 3 };
+  // ------------------------------------------------------------------ model
 
-  /** Per-sender summary, most AI-like first. */
-  function summarize(records) {
-    const map = new Map();
-    for (const r of records) {
-      if (!map.has(r.sender)) map.set(r.sender, []);
-      map.get(r.sender).push(r);
+  /** Build a model from model.json (parsed) and weights.bin (ArrayBuffer). */
+  function createModel(meta, weightsBuffer) {
+    const nw = meta.word_terms.length, nc = meta.char_terms.length;
+    const f = new Float32Array(weightsBuffer);
+    if (f.length !== 2 * nw + 2 * nc) throw new Error("weights.bin does not match model.json");
+    const model = {
+      meta,
+      wordVocab: new Map(meta.word_terms.map((t, i) => [t, i])),
+      charVocab: new Map(meta.char_terms.map((t, i) => [t, i])),
+      wordIdf: f.subarray(0, nw),
+      wordCoef: f.subarray(nw, 2 * nw),
+      charIdf: f.subarray(2 * nw, 2 * nw + nc),
+      charCoef: f.subarray(2 * nw + nc),
+      readable: new Set(meta.readable),
+    };
+    return model;
+  }
+
+  /** Browser: fetch the exported model files. */
+  async function loadModel(base = "model/") {
+    const [meta, weights] = await Promise.all([
+      fetch(base + "model.json").then((r) => { if (!r.ok) throw new Error(`model.json: HTTP ${r.status}`); return r.json(); }),
+      fetch(base + "weights.bin").then((r) => { if (!r.ok) throw new Error(`weights.bin: HTTP ${r.status}`); return r.arrayBuffer(); }),
+    ]);
+    return createModel(meta, weights);
+  }
+
+  function verdict(score, m) {
+    if (score >= m.threshold_likely) return "Likely AI-written";
+    if (score >= m.threshold_possible) return "Possibly AI-written";
+    return "No clear AI signs";
+  }
+
+  /** Same result shape and wording as ghost_check.score_text(). */
+  function scoreText(rawText, model) {
+    const m = model.meta;
+    const text = normalise(rawText);
+    const words = splitWords(text).length;
+    if (words < m.min_doc_words) {
+      return { words, score: null, verdict: "Too short to judge",
+        reason: `Only ${words} words; at least ${m.min_doc_words} are needed for a meaningful score.` };
     }
-    const rows = [...map.entries()].map(([sender, g]) => {
-      const scored = g.filter((r) => r.scored);
-      const judged = g.filter((r) => r.verdict in ORDER && r.verdict !== "inconclusive");
-      const likely = judged.filter((r) => r.verdict === "ai").length;
-      const possible = judged.filter((r) => r.verdict === "possible").length;
-      const wsum = scored.reduce((a, r) => a + r.words, 0);
-      const avg = wsum ? scored.reduce((a, r) => a + r.score * r.words, 0) / wsum : NaN;
-      // A document is judged as a whole; a chat sender by their individual messages.
-      const v = g.every((r) => r.kind === "document") ? verdict(avg, wsum) : personVerdict(judged.length, likely, possible);
-      const row = {
-        sender,
-        messages_total: g.length,
-        messages_scored: scored.length,
-        messages_judged: judged.length,
-        likely_ai: likely,
-        some_signs: possible,
-        ai_likely_pct: judged.length ? (100 * likely) / judged.length : NaN,
-        avg_score: avg,
-        avg_words: scored.length ? mean(scored.map((r) => r.words)) : NaN,
-        total_words: wsum,
-        verdict: v.key,
-        verdict_label: v.label,
-      };
-      for (const k of FEATURES) {
-        const vals = scored.map((r) => r[k]).filter((x) => !Number.isNaN(x));
-        row[k] = vals.length ? mean(vals) : NaN;
+    const chunks = chunkText(text, m.chunk_words, m.min_chunk_words);
+    const probs = [];
+    const contrib = new Map(); // readable word feature -> summed coef * x
+    for (const chunk of chunks) {
+      const xw = tfidf(wordNgrams(chunk), model.wordVocab, model.wordIdf);
+      const xc = tfidf(charWbNgrams(chunk), model.charVocab, model.charIdf);
+      let z = m.intercept;
+      for (const [j, v] of xw) {
+        z += v * model.wordCoef[j];
+        if (model.readable.has(j)) contrib.set(j, (contrib.get(j) || 0) + v * model.wordCoef[j]);
       }
-      return row;
-    });
-    const key = (v) => (Number.isNaN(v) ? -Infinity : v);
-    rows.sort((a, b) => ORDER[a.verdict] - ORDER[b.verdict] || key(b.ai_likely_pct) - key(a.ai_likely_pct) || key(b.avg_score) - key(a.avg_score));
-    return rows;
+      for (const [j, v] of xc) z += v * model.charCoef[j];
+      probs.push(1 / (1 + Math.exp(-z)));
+    }
+    const sizes = chunks.map((c) => splitWords(c).length);
+    const score = probs.reduce((a, p, i) => a + p * sizes[i], 0) / sizes.reduce((a, b) => a + b, 0);
+    const v = verdict(score, m);
+    const aiLike = probs.filter((p) => p >= m.threshold_possible).length;
+
+    const ranked = [...contrib.entries()].map(([j, s]) => [j, s / chunks.length]);
+    const aiTerms = ranked.filter(([, s]) => s > 0).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([j]) => m.word_terms[j]);
+    const humanTerms = ranked.filter(([, s]) => s < 0).sort((a, b) => a[1] - b[1]).slice(0, 3).map(([j]) => m.word_terms[j]);
+    let reason = `${aiLike} of ${chunks.length} section${chunks.length !== 1 ? "s" : ""} read as AI-like`;
+    if (aiTerms.length && score >= m.threshold_possible) reason += "; AI-leaning wording: " + aiTerms.map((t) => `'${t}'`).join(", ");
+    else if (humanTerms.length) reason += "; human-leaning wording: " + humanTerms.map((t) => `'${t}'`).join(", ");
+    if (words < 250) reason += ` (short text, ${words} words: lower confidence)`;
+    return { words, sections: chunks.length, score, verdict: v, reason,
+      section_scores: probs.map((p) => Math.round(p * 1000) / 1000), chunks };
   }
 
-  return {
-    parseWhatsApp, parseDocument, paragraphs, load, scoreFeatures, scoreRecords, summarize,
-    verdict, personVerdict, displayValue,
-    FEATURES, FEATURE_LABELS, FEATURE_HELP, VERDICTS, LIKELY_AI, POSSIBLE_AI, MIN_VERDICT_WORDS,
-  };
+  return { normalise, chunkText, wordNgrams, charWbNgrams, createModel, loadModel, scoreText, verdict };
 });

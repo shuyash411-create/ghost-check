@@ -20,7 +20,7 @@ Also split by document into train / validation / test (more varied writers):
 Out-of-distribution test sets (sources never used for training or model selection):
   human  Lang-8 and TOEFL-91 (non-native writers), Brown corpus 1961 prose
   AI     ArguGPT OOD essays (GPT-4, Claude-instant, BLOOMZ, Flan-T5), Ghostbuster
-         "undetectable" (AI text passed through a humaniser), eval/ai_samples.txt
+         "undetectable" (AI text passed through a humaniser), train/ai_samples.txt
 
 Every text is cut into ~200-word chunks on sentence boundaries: the AI essays
 in Ghostbuster are ~30% longer than the human ones, so whole-document training
@@ -147,9 +147,19 @@ def ood_argugpt(argu: Path) -> list[dict]:
     return rows
 
 
+BROWN_URL = "https://raw.githubusercontent.com/nltk/nltk_data/gh-pages/packages/corpora/brown.zip"
+
+
 def ood_brown(cache: Path) -> list[dict]:
     """1961 published prose: press, religion, hobbies, lore, belles-lettres, government, learned."""
-    z = zipfile.ZipFile(cache / "brown.zip")
+    path = cache / "brown.zip"
+    if not path.exists():
+        import urllib.request
+
+        cache.mkdir(parents=True, exist_ok=True)
+        print("downloading the Brown corpus (NLTK data)...", file=sys.stderr)
+        path.write_bytes(urllib.request.urlopen(BROWN_URL, timeout=120).read())
+    z = zipfile.ZipFile(path)
     rows = []
     for name in sorted(z.namelist()):
         base_name = name.rsplit("/", 1)[-1]
@@ -170,7 +180,7 @@ def ood_brown(cache: Path) -> list[dict]:
 
 
 def ood_ai_samples() -> list[dict]:
-    text = read(ROOT / "eval" / "ai_samples.txt")
+    text = read(ROOT / "train" / "ai_samples.txt")
     rows, genre, buf = [], None, []
     for line in text.splitlines() + ["=== end"]:
         if line.startswith("#"):
@@ -204,7 +214,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--ghostbuster", type=Path, required=True)
     ap.add_argument("--argugpt", type=Path, required=True, help="ArguGPT/data/argugpt")
-    ap.add_argument("--corpora-cache", type=Path, default=ROOT / "eval" / ".cache")
+    ap.add_argument("--corpora-cache", type=Path, default=ROOT / "train" / ".cache")
     ap.add_argument("--out", type=Path, default=ROOT / "train" / "data")
     ap.add_argument("--max-chunks", type=int, default=4, help="max chunks per in-distribution document")
     args = ap.parse_args()

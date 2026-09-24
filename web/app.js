@@ -1,118 +1,83 @@
-/* ghost-check web UI: reads input, runs GhostCheck (ghost-check.js), renders results. */
+/* ghost-check web UI: reads input, scores it with GhostCheck (ghost-check.js), renders results. */
 (function () {
   "use strict";
   const GC = window.GhostCheck;
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  const fmt = (v, d = 0) => (v == null || Number.isNaN(v) ? "–" : v.toFixed(d));
+  const pct = (v, d = 0) => (v == null || Number.isNaN(v) ? "–" : `${(100 * v).toFixed(d)}%`);
 
-  // ---------------------------------------------------------------- examples
-  const EXAMPLES = {
-    chat: `12/03/2024, 9:02 am - Riya created group "Weekend trip"
-12/03/2024, 9:05 am - Riya: guys are we still on for saturday??
-12/03/2024, 9:06 am - Arjun: yes!! i already asked my mom for the car lol
-12/03/2024, 9:07 am - Meera: Absolutely! I've put together a quick plan for the trip. First, we should leave by 7 AM to avoid the traffic. Additionally, it's worth noting that the weather forecast looks clear for the entire weekend. Let me know if you have any questions or suggestions.
-12/03/2024, 9:08 am - Riya: omg meera thats so organised 😂
-12/03/2024, 9:08 am - Riya: ok 7 is early but fine i guess
-12/03/2024, 9:11 am - Arjun: wait who is bringing snacks. i can get chips but not the drinks, my bag is already full with the speaker and stuff
-12/03/2024, 9:14 am - Meera: Great question! Here's a suggested breakdown of responsibilities:
-- Arjun: snacks and the speaker
-- Riya: drinks and the first-aid kit
-- Me: navigation and accommodation bookings
-This ensures that everyone contributes equally and nothing important is overlooked. Feel free to suggest any changes.
-12/03/2024, 9:15 am - Riya: fine i'll get drinks. coke and some juice? or should i also get water, it gets super hot there in the afternoon and last time we ran out
-12/03/2024, 9:20 am - Arjun: haha meera did you chatgpt that
-12/03/2024, 9:21 am - Meera: Not at all — I simply wanted to make sure the planning process is as seamless as possible for everyone involved. Ultimately, a well-organized trip leads to a more enjoyable experience. Let me know if you have any questions or suggestions.
-12/03/2024, 9:22 am - Arjun: sure sure 😂😂 anyway i'll pick everyone up. riya first then meera. dont be late this time!!!
-12/03/2024, 9:24 am - Riya: i was late ONE time. and it was because of the metro
-not my fault
-12/03/2024, 9:30 am - Meera: That's completely understandable. Public transportation delays can be unpredictable and frustrating. To avoid any issues on Saturday, I recommend setting two alarms and preparing your bag the night before.`,
-    ai: `In today's fast-paced world, effective communication plays a crucial role in organizational success. It is important to note that clear messaging fosters collaboration and builds trust across teams. Additionally, organizations that leverage modern tools can streamline their workflows and elevate their overall performance.
-
-Furthermore, leaders should embrace a comprehensive approach to feedback. This ensures that every voice is heard and valued. Ultimately, a culture of openness empowers employees to unlock their full potential and navigate challenges with confidence.`,
-    human: `So I tried the new bus route today. Terrible idea. It took forty minutes, the driver missed my stop, and I had to walk back in the rain with a broken umbrella.
-
-Honestly? Never again. Tomorrow I'm cycling, even if it means getting up at six. My legs will hate me but whatever, at least I'll be on time for once. Also I found a tiny cafe near the station that does amazing chai, so the day wasn't a total loss.`,
-  };
-
-  // ---------------------------------------------------------------- state
+  let model = null;
   let tab = "text";
-  let files = []; // [{name, pages: [text], kind}]
-  let last = null; // {records, modes}
+  let files = []; // [{name, text, kind, pages}]
 
-  // ---------------------------------------------------------------- tabs
-  function setTab(t) {
-    tab = t;
-    for (const [id, name] of [["text", "text"], ["file", "file"]]) {
-      $(`tab-${id}`).setAttribute("aria-selected", String(name === t));
-      $(`panel-${id}`).hidden = name !== t;
-    }
-  }
-  $("tab-text").onclick = () => setTab("text");
-  $("tab-file").onclick = () => setTab("file");
-
-  // ---------------------------------------------------------------- file reading
+  // ---------------------------------------------------------------- model
   function setStatus(msg, error = false) {
     $("status").textContent = msg;
     $("status").classList.toggle("error", error);
   }
 
+  GC.loadModel("model/")
+    .then((m) => {
+      model = m;
+      $("analyze").disabled = false;
+      $("analyze").textContent = "Check for AI";
+    })
+    .catch((e) => {
+      $("analyze").textContent = "Model unavailable";
+      setStatus(`Could not load the model: ${e.message}. Reload the page to try again.`, true);
+    });
+
+  // ---------------------------------------------------------------- tabs
+  function setTab(t) {
+    tab = t;
+    for (const id of ["text", "file"]) {
+      $(`tab-${id}`).setAttribute("aria-selected", String(id === t));
+      $(`panel-${id}`).hidden = id !== t;
+    }
+  }
+  $("tab-text").onclick = () => setTab("text");
+  $("tab-file").onclick = () => setTab("file");
+
+  // ---------------------------------------------------------------- files
   function decode(buf) {
     const b = new Uint8Array(buf);
     if (b[0] === 0xff && b[1] === 0xfe) return new TextDecoder("utf-16le").decode(b);
     if (b[0] === 0xfe && b[1] === 0xff) return new TextDecoder("utf-16be").decode(b);
     try {
-      return new TextDecoder("utf-8", { fatal: true }).decode(b).replace(/^\ufeff/, "");
+      return new TextDecoder("utf-8", { fatal: true }).decode(b).replace(/^﻿/, "");
     } catch {
       return new TextDecoder("windows-1252").decode(b);
     }
   }
 
-  const scripts = {};
-  function loadScript(src) {
-    return (scripts[src] ||= new Promise((res, rej) => {
+  let pdfjsReady = null;
+  function loadPdfjs() {
+    return (pdfjsReady ||= new Promise((res, rej) => {
       const s = document.createElement("script");
-      s.src = src;
-      s.onload = res;
-      s.onerror = () => rej(new Error(`Could not load ${src}`));
+      s.src = "vendor/pdf.min.js";
+      s.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = "vendor/pdf.worker.min.js"; res(window.pdfjsLib); };
+      s.onerror = () => rej(new Error("could not load the PDF reader"));
       document.head.appendChild(s);
     }));
   }
 
   async function readPdf(buf) {
-    await loadScript("vendor/pdf.min.js");
-    const pdfjs = window.pdfjsLib;
-    pdfjs.GlobalWorkerOptions.workerSrc = "vendor/pdf.worker.min.js";
+    const pdfjs = await loadPdfjs();
     const pdf = await pdfjs.getDocument({ data: buf }).promise;
     const pages = [];
     for (let p = 1; p <= pdf.numPages; p++) {
-      const page = await pdf.getPage(p);
-      const content = await page.getTextContent();
-      let text = "", lastY = null, lastH = 0, lineStart = true;
+      const content = await (await pdf.getPage(p)).getTextContent();
+      let text = "";
       for (const it of content.items) {
         if (!("str" in it)) continue;
-        const y = it.transform[5];
-        const h = Math.abs(it.transform[3]) || it.height || 10;
-        // A vertical gap much larger than the font size starts a new paragraph.
-        if (lineStart && lastY !== null && lastY - y > 1.8 * Math.max(h, lastH)) text += "\n";
         text += it.str;
-        if (it.str.trim()) { lastY = y; lastH = h; lineStart = false; }
-        if (it.hasEOL) { text += "\n"; lineStart = true; }
+        if (it.hasEOL) text += "\n";
       }
       pages.push(text);
     }
-    if (!pages.some((t) => t.trim())) {
-      throw new Error("This PDF has no text layer (it's probably a scan). Run it through OCR first.");
-    }
-    return pages;
-  }
-
-  async function readZip(buf) {
-    await loadScript("vendor/jszip.min.js");
-    const zip = await window.JSZip.loadAsync(buf);
-    const entry = Object.values(zip.files).find((f) => !f.dir && /\.txt$/i.test(f.name));
-    if (!entry) throw new Error("No .txt chat file inside the zip.");
-    return [decode(await entry.async("arraybuffer"))];
+    const text = pages.join("\n\n");
+    if (!text.trim()) throw new Error("no text layer (probably a scanned PDF). Run it through OCR first.");
+    return { text, pages: pdf.numPages };
   }
 
   async function addFiles(list) {
@@ -120,12 +85,9 @@ Honestly? Never again. Tomorrow I'm cycling, even if it means getting up at six.
       setStatus(`Reading ${f.name}…`);
       try {
         const buf = await f.arrayBuffer();
-        const ext = f.name.toLowerCase().split(".").pop();
-        let pages, kind;
-        if (ext === "pdf" || f.type === "application/pdf") [pages, kind] = [await readPdf(buf), "PDF"];
-        else if (ext === "zip") [pages, kind] = [await readZip(buf), "ZIP"];
-        else [pages, kind] = [[decode(buf)], "Text"];
-        files.push({ name: f.name, pages, kind });
+        const isPdf = f.name.toLowerCase().endsWith(".pdf") || f.type === "application/pdf";
+        const r = isPdf ? await readPdf(buf) : { text: decode(buf), pages: null };
+        files.push({ name: f.name, text: r.text, kind: isPdf ? "PDF" : "Text", pages: r.pages });
         setStatus("");
       } catch (e) {
         setStatus(`${f.name}: ${e.message}`, true);
@@ -136,7 +98,7 @@ Honestly? Never again. Tomorrow I'm cycling, even if it means getting up at six.
 
   function renderFiles() {
     $("files").innerHTML = files.map((f, i) =>
-      `<li><span>${esc(f.name)} <span class="muted small">· ${f.kind}${f.pages.length > 1 ? `, ${f.pages.length} pages` : ""}</span></span>` +
+      `<li><span>${esc(f.name)} <span class="muted small">· ${f.kind}${f.pages ? `, ${f.pages} page${f.pages > 1 ? "s" : ""}` : ""}</span></span>` +
       `<button class="btn link" data-rm="${i}" aria-label="Remove ${esc(f.name)}">Remove</button></li>`).join("");
   }
   $("files").onclick = (e) => {
@@ -150,174 +112,155 @@ Honestly? Never again. Tomorrow I'm cycling, even if it means getting up at six.
   $("file").onchange = async (e) => { await addFiles([...e.target.files]); e.target.value = ""; };
   ["dragenter", "dragover"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add("over"); }));
   ["dragleave", "drop"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
-  drop.addEventListener("drop", async (e) => { await addFiles([...e.dataTransfer.files]); runIfReady(); });
-  // Dropping a file anywhere on the page switches to the upload tab.
+  drop.addEventListener("drop", async (e) => { await addFiles([...e.dataTransfer.files]); if (files.length && model) analyze(); });
   window.addEventListener("dragover", (e) => { if (e.dataTransfer?.types?.includes("Files")) { e.preventDefault(); setTab("file"); } });
   window.addEventListener("drop", (e) => e.preventDefault());
 
   // ---------------------------------------------------------------- analysis
-  const opts = () => ({ mode: $("mode").value, byPage: $("bypage").checked });
-
-  function collect() {
-    const o = opts();
-    const out = [], modes = [];
-    const sources = tab === "text"
-      ? ($("text").value.trim() ? [{ name: "Pasted text", pages: [$("text").value], label: "Your text" }] : [])
-      : files;
-    for (const s of sources) {
-      const { records, mode } = GC.load(s.pages, s.name, { mode: o.mode, byPage: o.byPage, label: s.label });
-      out.push(...records);
-      modes.push({ name: s.name, mode, n: records.length, senders: new Set(records.map((r) => r.sender)).size });
-    }
-    return { records: out, modes };
-  }
-
   function analyze() {
-    const { records, modes } = collect();
-    if (!modes.length) {
+    if (!model) return;
+    const docs = tab === "text"
+      ? ($("text").value.trim() ? [{ name: "Your text", text: $("text").value }] : [])
+      : files.map((f) => ({ name: f.name, text: f.text }));
+    if (!docs.length) {
       setStatus(tab === "text" ? "Paste some text first." : "Add a file first.", true);
       $("results").innerHTML = "";
       return;
     }
-    last = { records, modes };
-    render();
+    setStatus("");
+    const results = docs.map((d) => ({ name: d.name, ...GC.scoreText(d.text, model) }));
+    render(results);
     $("results").scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  function runIfReady() { if (files.length) analyze(); }
-
   $("analyze").onclick = analyze;
   $("text").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) analyze(); });
-  for (const [btn, key] of [["ex-chat", "chat"], ["ex-ai", "ai"], ["ex-human", "human"]]) {
-    $(btn).onclick = () => { setTab("text"); $("text").value = EXAMPLES[key]; analyze(); };
+  for (const [btn, file] of [["ex-ai", "examples/ai-essay.txt"], ["ex-human", "examples/human-speech.txt"]]) {
+    $(btn).onclick = async () => {
+      try {
+        const r = await fetch(file);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        setTab("text");
+        $("text").value = await r.text();
+        analyze();
+      } catch (e) {
+        setStatus(`Could not load the example: ${e.message}`, true);
+      }
+    };
   }
-  for (const id of ["mode", "bypage"]) $(id).onchange = () => { if (last) analyze(); };
-  $("acc-link").onclick = () => { $("accuracy").open = true; };
 
-  // ---------------------------------------------------------------- rendering
-  const PILL = { ai: "high", possible: "mid", none: "low", inconclusive: "na", skipped: "na" };
-  const COLOR = { ai: "var(--highink)", possible: "var(--midink)", none: "var(--lowink)", inconclusive: "var(--ink3)" };
-  const pill = (key, text) => `<span class="pill ${PILL[key]}">${esc(text)}</span>`;
-  const bar = (v) => `<div class="bar"><i style="width:${Number.isNaN(v) ? 0 : Math.max(0, Math.min(100, v))}%"></i></div>`;
-  const anchor = (i) => `sender-${i}`;
-  const dv = (k, v) => GC.displayValue(k, v);
-
+  // ---------------------------------------------------------------- results
+  const KEY = { "Likely AI-written": "high", "Possibly AI-written": "mid", "No clear AI signs": "low", "Too short to judge": "na" };
+  const COLOR = { high: "var(--highink)", mid: "var(--midink)", low: "var(--lowink)", na: "var(--ink3)" };
   const EXPLAIN = {
-    ai: "Several strong signs of AI writing. On human writing from before AI chatbots, only about 1% of texts score this high.",
-    possible: "Some features common in AI writing. Formal or polished human writing can look like this too, so read it yourself before concluding anything.",
-    none: "No strong AI signals. This doesn't prove a person wrote it: AI prompted to sound casual, or edited by a person, usually passes.",
-    inconclusive: `Too short to judge. Under ${GC.MIN_VERDICT_WORDS} words there isn't enough evidence either way. Add more text for a verdict.`,
+    high: "Strong statistical resemblance to AI-written text. On held-out human documents, only about 1% score this high. Still not proof: read the text and talk to the author before concluding anything.",
+    mid: "Some resemblance to AI-written text. About 5% of human documents score this high, especially formal or heavily edited ones, so treat this as a weak signal.",
+    low: "No strong resemblance to AI-written text. This does not prove a person wrote it: text from newer AI models, or AI text that has been edited or written in a personal or informal voice, often scores low.",
+    na: "Not enough text for a meaningful score. Paste at least 80 words; 250 or more gives a more reliable result.",
   };
-  const EXPLAIN_PERSON = {
-    ai: "At least two of this person's messages look likely AI-written.",
-    possible: "One message looks likely AI-written, or several show some signs. Not enough to conclude on its own.",
-    none: "None of this person's longer messages show clear AI signs.",
-    inconclusive: `Messages under ${GC.MIN_VERDICT_WORDS} words can't be judged, and this person has fewer than two longer ones.`,
-  };
+  const pill = (verdict) => `<span class="pill ${KEY[verdict]}">${esc(verdict)}</span>`;
 
   function dial(score, key) {
-    const r = 62, c = 2 * Math.PI * r, v = Number.isNaN(score) ? 0 : score / 100;
-    return `<div class="dial" role="img" aria-label="AI-likelihood score ${fmt(score)} out of 100">
-      <svg viewBox="0 0 148 148"><circle cx="74" cy="74" r="${r}" fill="none" stroke="var(--track)" stroke-width="12"/>
-      <circle cx="74" cy="74" r="${r}" fill="none" stroke="${COLOR[key]}" stroke-width="12" stroke-linecap="round"
+    const r = 56, c = 2 * Math.PI * r, v = score == null ? 0 : score;
+    return `<div class="dial" role="img" aria-label="AI-likelihood ${score == null ? "not available" : Math.round(100 * score) + " out of 100"}">
+      <svg viewBox="0 0 136 136"><circle cx="68" cy="68" r="${r}" fill="none" stroke="var(--track)" stroke-width="12"/>
+      <circle cx="68" cy="68" r="${r}" fill="none" stroke="${COLOR[key]}" stroke-width="12" stroke-linecap="round"
         stroke-dasharray="${(c * v).toFixed(1)} ${c.toFixed(1)}"/></svg>
-      <div class="val"><span class="num">${fmt(score)}</span><span class="of">out of 100</span></div></div>`;
+      <div class="val"><span class="num">${score == null ? "–" : Math.round(100 * score)}</span><span class="of">out of 100</span></div></div>`;
   }
 
-  function features(row) {
-    return `<div class="feat">${GC.FEATURES.map((k) =>
-      `<div class="f"><div class="name">${GC.FEATURE_LABELS[k]}<small>${GC.FEATURE_HELP[k]}</small></div>${bar(dv(k, row[k]))}<div class="v">${fmt(dv(k, row[k]))}</div></div>`).join("")}</div>`;
+  function scale(score) {
+    const p = 100 * model.meta.threshold_possible, l = 100 * model.meta.threshold_likely;
+    return `<div class="scale" aria-hidden="true">
+        <span class="zone z1" style="width:${p}%"></span><span class="zone z2" style="left:${p}%;width:${l - p}%"></span>
+        <span class="zone z3" style="left:${l}%"></span><span class="marker" style="left:${Math.min(100, 100 * score)}%"></span></div>
+      <div class="scale-labels"><span style="left:${p / 2}%"><i class="long">No clear signs</i><i class="short">None</i></span>
+        <span style="left:${(p + l) / 2}%"><i class="long">Possibly (${Math.round(p)}+)</i><i class="short">${Math.round(p)}+</i></span>
+        <span style="left:${(l + 100) / 2}%"><i class="long">Likely AI (${Math.round(l)}+)</i><i class="short">Likely ${Math.round(l)}+</i></span></div>`;
   }
 
-  function messageList(recs, limit) {
-    return recs.slice(0, limit).map((r) => {
-      const ts = r.timestamp ? r.timestamp.toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "";
-      const meta = GC.FEATURES.map((k) => `<span>${GC.FEATURE_LABELS[k]} <b>${fmt(dv(k, r[k]))}</b></span>`).join("");
-      return `<li class="msg">${pill(r.verdict, fmt(r.score))}<div><div class="text">${esc(r.message)}</div>
-        <div class="meta"><span><b>${esc(r.verdict_label)}</b></span>${ts ? `<span>${esc(ts)}</span>` : ""}<span>${r.words} words</span>${meta}</div></div></li>`;
-    }).join("");
-  }
-
-  function render() {
-    const { records, modes } = last;
-    GC.scoreRecords(records);
-    const summary = GC.summarize(records);
-    const scored = records.filter((r) => r.scored);
-    const isChat = modes.some((m) => m.mode === "chat");
-    const unit = isChat ? "messages" : "passages";
-
-    const detected = modes.map((m) => m.mode === "chat"
-      ? `${esc(m.name)}: WhatsApp chat, ${m.n} messages from ${m.senders} ${m.senders === 1 ? "person" : "people"}`
-      : `${esc(m.name)}: document, ${m.n} ${m.n === 1 ? "passage" : "passages"}`).join(" · ");
-    setStatus("");
-
-    if (!scored.length) {
-      $("results").innerHTML = `<div class="card"><h2>Too short to judge</h2><p class="muted">There isn't enough text here to say anything.
-        A verdict needs at least ${GC.MIN_VERDICT_WORDS} words. Add more text and try again.</p><p class="note">${detected}</p></div>`;
-      return;
+  function docCard(r, i) {
+    const key = KEY[r.verdict];
+    let html = `<div class="card" id="doc-${i}"><div class="hero">${dial(r.score, key)}<div>
+      <p class="muted small" style="margin:0">${esc(r.name)} · ${r.words} words${r.sections ? ` · ${r.sections} section${r.sections > 1 ? "s" : ""}` : ""}</p>
+      <p class="verdict">${esc(r.verdict)}</p>
+      <p class="reason">${esc(r.reason)}.</p></div></div>`;
+    if (r.score != null) {
+      html += scale(r.score);
+      if (r.sections > 1) {
+        html += `<div class="sections">${r.section_scores.map((s, j) =>
+          `<div class="sec"><span>Section ${j + 1}</span><div class="bar"><i style="width:${100 * s}%"></i></div><span class="v">${Math.round(100 * s)}</span></div>`).join("")}</div>`;
+      }
+      html += `<details class="more"><summary>Show the text of each section</summary><ol class="sectext">${r.chunks.map((c, j) =>
+        `<li><b>Section ${j + 1} · ${Math.round(100 * r.section_scores[j])}/100</b>${esc(c)}</li>`).join("")}</ol></details>`;
     }
+    html += `<p class="hint">${EXPLAIN[key]}</p></div>`;
+    return html;
+  }
 
+  function render(results) {
     let html = "";
-    if (summary.length === 1) {
-      const s = summary[0];
-      // A document is judged as a whole; a chat sender by their individual messages.
-      const v = { key: s.verdict, label: s.verdict_label };
-      const why = isChat ? EXPLAIN_PERSON[v.key] : EXPLAIN[v.key];
-      const parts = !isChat && s.messages_scored > 1
-        ? `<span><b>${s.likely_ai}</b> of ${s.messages_judged} ${unit} look likely AI</span>` : "";
-      html += `<div class="card"><div class="hero">${dial(s.avg_score, v.key)}<div>
-        <p class="muted small" style="margin:0">AI-likelihood score</p>
-        <p class="verdict">${esc(v.label)}</p>
-        <div class="stats"><span><b>${s.total_words}</b> words analysed</span>${parts}
-          ${isChat ? `<span><b>${s.likely_ai}</b> of ${s.messages_judged} longer messages look likely AI</span>` : ""}</div>
-        </div></div>
-        <p class="hint">${why}</p>
-        <h2 style="margin-top:24px">Signals found</h2>${features(s)}
-        <p class="note">${detected}. <a href="#accuracy" class="acc">How accurate is this?</a></p></div>`;
-    } else {
-      const L = GC.LIKELY_AI, P = GC.POSSIBLE_AI;
-      const who = isChat ? "Person" : "Section";
-      html += `<div class="card"><h2>${isChat ? "Who writes most like AI" : "Which part reads most like AI"}</h2>
-        <p class="muted small" style="margin-top:-6px">Average AI-likelihood score (longer ${unit} count more). Click a name for details.</p>
-        <div class="chart">${summary.map((s, i) => `<a class="c" href="#${anchor(i)}" title="${esc(s.sender)}: ${esc(s.verdict_label)}, average score ${fmt(s.avg_score)}">
-          <span class="who">${esc(s.sender)}</span><div class="track">${bar(s.avg_score)}<span class="mark" style="left:${P}%"></span><span class="mark" style="left:${L}%"></span></div>
-          <span class="v">${pill(s.verdict, s.verdict_label)}</span></a>`).join("")}</div>
-        <p class="legend"><span><i></i>dashed lines: “Some AI signs” at ${P.toFixed(0)}, “Likely AI” at ${L.toFixed(0)}</span></p>
-        <div class="scroll" style="margin-top:16px"><table><thead><tr><th>${who}</th><th>Verdict</th><th class="num">Avg score</th><th class="num">Likely-AI / judged</th><th class="num">${isChat ? "Messages" : "Passages"}</th>
-          ${GC.FEATURES.map((k) => `<th class="num">${GC.FEATURE_LABELS[k]}</th>`).join("")}</tr></thead><tbody>
-          ${summary.map((s, i) => `<tr><td><a href="#${anchor(i)}">${esc(s.sender)}</a></td><td>${pill(s.verdict, s.verdict_label)}</td>
-            <td class="num">${fmt(s.avg_score)}</td><td class="num">${s.likely_ai} / ${s.messages_judged}</td><td class="num">${s.messages_total}</td>
-            ${GC.FEATURES.map((k) => `<td class="num">${fmt(dv(k, s[k]))}</td>`).join("")}</tr>`).join("")}
-        </tbody></table></div>
-        <p class="note">${detected}. ${isChat ? `Messages under ${GC.MIN_VERDICT_WORDS} words are too short to judge; a person is only called likely AI if at least two of their messages are.` : ""}
-          <a href="#accuracy" class="acc">How accurate is this?</a></p></div>`;
+    if (results.length > 1) {
+      const order = results.map((r, i) => [r, i]).sort((a, b) => (b[0].score ?? -1) - (a[0].score ?? -1));
+      html += `<div class="card"><h2>${results.length} documents compared</h2><div class="scroll"><table>
+        <thead><tr><th>Document</th><th class="num">AI-likelihood</th><th>Verdict</th><th class="num">Words</th></tr></thead><tbody>
+        ${order.map(([r, i]) => `<tr><td><a href="#doc-${i}">${esc(r.name)}</a></td><td class="num">${r.score == null ? "–" : Math.round(100 * r.score)}</td>
+          <td>${pill(r.verdict)}</td><td class="num">${r.words}</td></tr>`).join("")}
+        </tbody></table></div></div>`;
     }
-
-    const LIMIT = 20;
-    html += `<div class="card"><h2>${summary.length === 1 ? `${isChat ? "Messages" : "Passages"}, most AI-like first` : isChat ? "Messages by person" : "Passages by section"}</h2>`;
-    summary.forEach((s, i) => {
-      const recs = scored.filter((r) => r.sender === s.sender).sort((a, b) => b.score - a.score);
-      const list = `<ul class="msgs" data-sender="${i}">${messageList(recs, LIMIT)}</ul>`;
-      if (summary.length === 1) html += list;
-      else html += `<details class="sender" id="${anchor(i)}" ${i === 0 ? "open" : ""}><summary><h3>${esc(s.sender)}</h3>
-          ${pill(s.verdict, s.verdict_label)}<span class="muted small">avg ${fmt(s.avg_score)} · ${s.likely_ai} of ${s.messages_judged} judged ${unit} likely AI</span></summary>
-          <p class="hint">${(isChat ? EXPLAIN_PERSON : EXPLAIN)[s.verdict]}</p>${list}</details>`;
-      if (recs.length > LIMIT) html += `<button class="btn link" data-more="${i}">Show all ${recs.length}</button>`;
-    });
-    html += `</div>`;
+    html += results.map(docCard).join("");
     $("results").innerHTML = html;
-
-    $("results").querySelectorAll("[data-more]").forEach((btn) => {
-      btn.onclick = () => {
-        const i = +btn.dataset.more, s = summary[i];
-        const recs = scored.filter((r) => r.sender === s.sender).sort((a, b) => b.score - a.score);
-        $("results").querySelector(`ul[data-sender="${i}"]`).innerHTML = messageList(recs, Infinity);
-        btn.remove();
-      };
-    });
-    $("results").querySelectorAll('a[href^="#sender-"]').forEach((a) => {
-      a.onclick = () => { const d = document.querySelector(a.getAttribute("href")); if (d) d.open = true; };
-    });
-    $("results").querySelectorAll("a.acc").forEach((a) => { a.onclick = () => { $("accuracy").open = true; }; });
   }
+
+  // ---------------------------------------------------------------- accuracy panel (from accuracy.json)
+  const NAMES = {
+    "human-brown-1961 (published prose)": "Published prose from 1961 (Brown corpus)",
+    "human-lang8 (non-native learners)": "Learner writing, non-native (Lang-8)",
+    "human-toefl91 (non-native)": "TOEFL essays, non-native (TOEFL-91)",
+    "ai-argugpt (gpt4)": "GPT-4 essays",
+    "ai-argugpt (claude-instant)": "Claude-instant essays",
+    "ai-undetectable (humanised AI)": "AI text run through a \"humaniser\"",
+    "ai-claude-samples (essays/emails, short)": "Short Claude-written essays and emails",
+    "ai-argugpt (flan-t5-11b)": "Flan-T5 essays (small open model)",
+    "ai-argugpt (bloomz-7b)": "BLOOMZ essays (small open model)",
+  };
+
+  function renderAccuracy(a) {
+    const t = a.test.at_likely, tp = a.test.at_possible;
+    const ood = Object.entries(a.ood_by_source);
+    const row = ([k, v]) => `<tr><td>${esc(NAMES[k] || k)}</td><td class="num">${v.docs}</td><td class="num">${pct(v.flag_rate_likely, 1)}</td><td class="num">${pct(v.flag_rate_possible, 1)}</td></tr>`;
+    const s = a.sanity;
+    $("accuracy-body").innerHTML = `
+      <p><b>No AI detector is 100% accurate</b>, and any tool that claims to be is not telling the truth. These are the measured results
+        for the model this page uses. The numbers come straight from the evaluation files, so they always match the model.</p>
+      <table class="acc"><thead><tr><th>Held-out test documents (never trained on)</th><th class="num">Result</th></tr></thead><tbody>
+        <tr><td>Documents (human / AI)</td><td class="num">${t.n_human.toLocaleString()} / ${t.n_ai.toLocaleString()}</td></tr>
+        <tr><td>Accuracy at “Likely AI”</td><td class="num">${pct(t.accuracy, 1)}</td></tr>
+        <tr><td>Human documents wrongly called “Likely AI”</td><td class="num">${pct(t.false_positive_rate, 2)}</td></tr>
+        <tr><td>Human documents getting “Possibly” or higher</td><td class="num">${pct(tp.false_positive_rate, 1)}</td></tr>
+        <tr><td>AI documents missed (below “Likely AI”)</td><td class="num">${pct(t.false_negative_rate, 2)}</td></tr>
+      </tbody></table>
+      <p>Those documents come from the same kinds of sources as the training data. The table below is a better guide to real use:
+        sources and AI models the classifier never saw during training.</p>
+      <table class="acc"><thead><tr><th>Never-seen source</th><th class="num">Docs</th><th class="num">“Likely AI”</th><th class="num">“Possibly” or higher</th></tr></thead><tbody>
+        <tr><th colspan="4" class="grp">Human writing (every flag is a false alarm)</th></tr>
+        ${ood.filter(([, v]) => v.label === 0).map(row).join("")}
+        <tr><th colspan="4" class="grp">AI writing (share caught)</th></tr>
+        ${ood.filter(([, v]) => v.label === 1).sort((x, y) => y[1].flag_rate_likely - x[1].flag_rate_likely).map(row).join("")}
+      </tbody></table>
+      ${s ? `<p><b>Real-world check:</b> ${s.documents} assignment-style PDFs (${s.human} human, ${s.ai} written by a current AI model)
+        got <b>${s.correct}/${s.documents}</b> right. ${s.human_flagged} human document${s.human_flagged === 1 ? " was" : "s were"} wrongly flagged,
+        and ${s.ai_missed} AI document${s.ai_missed === 1 ? " was" : "s were"} missed.</p>` : ""}
+      <ul>
+        <li><b>Weakest on newer AI models</b> and on AI text written in a personal, informal or non-native voice. It learned mostly from older GPT and Claude text.</li>
+        <li><b>“No clear AI signs” is not proof a human wrote something.</b> Edited or paraphrased AI text often passes.</li>
+        <li><b>Short texts are unreliable.</b> Under 80 words there is no score, and under ~250 words confidence is lower.</li>
+        <li><b>For formal English writing only</b> (essays, reports, assignments, articles), not chats, poems or other languages.</li>
+      </ul>
+      <p class="muted small">Data, method and code: <a href="https://github.com/shuyash411-create/ghost-check/blob/main/train/RESULTS.md">train/RESULTS.md</a>.</p>`;
+  }
+
+  fetch("model/accuracy.json").then((r) => r.json()).then(renderAccuracy)
+    .catch(() => { $("accuracy-body").innerHTML = `<p class="muted">Accuracy figures could not be loaded. See train/RESULTS.md in the repository.</p>`; });
+  $("acc-link").onclick = () => { $("accuracy").open = true; };
 })();

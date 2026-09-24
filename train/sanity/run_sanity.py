@@ -16,6 +16,7 @@ Usage:  python train/sanity/run_sanity.py --ghostbuster ../ghostbuster-data   (n
 """
 
 import argparse
+import json
 import re
 import sys
 import tempfile
@@ -88,6 +89,11 @@ def main() -> int:
                f"{fp}/{n_h} · AI missed {fn}/{n_a}")
     print(summary)
     (HERE / "results.md").write_text("\n".join(lines) + "\n" + summary.strip() + "\n", encoding="utf-8")
+    (HERE / "results.json").write_text(json.dumps({
+        "documents": len(rows), "correct": len(rows) - fp - fn, "human": n_h, "ai": n_a,
+        "human_flagged": int(fp), "ai_missed": int(fn),
+        "rows": [{"author": l, "file": n, "score": r["score"], "verdict": r["verdict"]} for l, n, r in rows],
+    }, indent=2), encoding="utf-8")
     return 0
 
 

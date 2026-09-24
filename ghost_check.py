@@ -48,7 +48,9 @@ def normalise(text: str) -> str:
     return text.strip()
 
 
-_SENT = re.compile(r"(?<=[.!?])\s+|\n+")
+# Sentence ends only: line breaks are not boundaries, because in PDFs they are just
+# where the layout wrapped a line, and they would move section boundaries around.
+_SENT = re.compile(r"(?<=[.!?])\s+")
 
 
 def chunk_text(text: str, target: int = CHUNK_WORDS, minimum: int = MIN_CHUNK_WORDS) -> list[str]:
@@ -149,7 +151,8 @@ def score_text(text: str, model: dict) -> dict:
     chunks = chunk_text(text)
     X = model["vectorizer"].transform(chunks)
     probs = model["classifier"].predict_proba(X)[:, 1]
-    score = float(probs.mean())
+    sizes = [len(c.split()) for c in chunks]
+    score = float(sum(p * n for p, n in zip(probs, sizes)) / sum(sizes))  # longer sections count more
     v = verdict(score, model)
     ai_like = int((probs >= model["threshold_possible"]).sum())
     ai_terms, human_terms = _top_terms(model, X)
