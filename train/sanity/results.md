@@ -20,4 +20,5 @@
 | ai | 08_policy_cycling | 306 | 21% | Possibly AI-written | ✓ |
 | ai | 09_toefl_style_nonnative | 285 | 1% | No clear AI signs | ✗ |
 | ai | 10_psych_sleep_informal | 323 | 0% | No clear AI signs | ✗ |
-Accuracy 15/20 · human wrongly flagged (Likely or Possibly AI) 0/10 · AI missed 5/10
+| ai | 11_econ_report_asean | 3099 | 3% | No clear AI signs | ✗ |
+Accuracy 15/21 · human wrongly flagged (Likely or Possibly AI) 0/10 · AI missed 6/11

@@ -13,9 +13,10 @@ Raw numbers: [`results.json`](results.json) and
 
 **Short version:** near-perfect on text like its training data, and good on
 unseen *human* writing, but noticeably weaker on AI text from generators it
-hasn't seen, especially current models. In the 20-document real-world check
-it got 15/20 right: none of the 10 human documents was wrongly flagged, and 5
-of the 10 AI documents were missed. It is not 100% accurate, and no detector is.
+hasn't seen, especially current models. In the 21-document real-world check
+it got 15/21 right: none of the 10 human documents was wrongly flagged, and 6
+of the 11 AI documents were missed, including a real, user-submitted, cited
+economics report (see section 3). It is not 100% accurate, and no detector is.
 
 ## Data
 
@@ -91,29 +92,39 @@ This is the better guide to real-world behaviour.
 | **AI:** Flan-T5-11B essays | 100 | 37% | 60% |
 | **AI:** BLOOMZ-7B essays | 100 | 24% | 44% |
 
-## 3. Real-world sanity check: 20 assignment-style documents, run as PDFs
+## 3. Real-world sanity check: 21 assignment-style documents, run as PDFs
 
 Each text was rendered to a real PDF and scored through the CLI's PDF path
 (pypdf) and through the web app (pdf.js). Both gave identical scores for all
-20 documents.
+21 documents.
 - **Human (10):** 6 UK university assignments and 2 TOEFL essays from the
   held-out test split, plus 2 US State of the Union addresses (never used).
-- **AI (10):** assignment-style texts written by a current Claude model, which
-  is newer than any generator in the training data.
+- **AI (11):** assignment-style texts written by a current Claude model, which
+  is newer than any generator in the training data. #11 is a real ~3,100-word
+  cited economics report a user submitted to us as a false negative (it
+  originally scored 0–6/100 depending on PDF extractor); it is anonymised
+  (names, registration number and instructor identity removed) but otherwise
+  verbatim.
 
 Full table: [`sanity/results.md`](sanity/results.md).
 
 | True author | Correct | Wrong |
 |---|---:|---:|
 | Human (10) | **10** (scores 0–15) | 0 |
-| AI (10) | 5: Frankenstein essay and printing-press essay "Likely"; business case, lab report and policy brief "Possibly" | **5 missed**: minimum-wage essay (13), antibiotic-resistance explainer (17), reflective assignment (11), non-native-style essay (1), informal essay (0) |
+| AI (11) | 5: Frankenstein essay and printing-press essay "Likely"; business case, lab report and policy brief "Possibly" | **6 missed**: minimum-wage essay (13), antibiotic-resistance explainer (17), reflective assignment (11), non-native-style essay (1), informal essay (0), **cited economics report (3)** |
 
-**Overall: 15/20 = 75% accuracy. False positive rate 0/10, false negative rate 5/10.**
+**Overall: 15/21 = 71% accuracy. False positive rate 0/10, false negative rate 6/11.**
 
 The model has learned what *older* LLM text looks like: GPT-3.5, GPT-4 and
 Claude-instant are caught 99–100% of the time. Text from a current model
-scores far lower (median 19 here, vs ~99 for the older models). AI text in a
-personal, non-native or informal voice scored close to 0.
+scores far lower (median 17 here, vs ~99 for the older models). AI text in a
+personal, non-native, informal, or long factual/cited-report voice scored
+close to 0. The cited economics report is a particularly hard case: v2's
+retraining specifically taught the model that dense academic phrasing
+(semicolons, parentheticals, "of the", formal connectors) is a *human*
+signal, because that fixed v1's false positives on real student essays. A
+well-researched, properly cited AI report in that same register lands on the
+wrong side of that same fix — see the tradeoff noted in section 4.
 
 ## 4. Version history: what changed and why
 
@@ -128,6 +139,16 @@ personal, non-native or informal voice scored close to 0.
 - **Generalisation to new models is the weak point** (section 3). Training on
   samples from current models (`generate_claude.py`, and ideally other vendors
   too) is the most valuable next step.
+- **Long, factually dense, properly cited reports are a specific hard case**,
+  confirmed by a real user-submitted false negative added to the sanity check
+  (`train/sanity/ai/11_econ_report_asean.txt`). The word patterns that fixed
+  v1's false positives on real student essays (semicolons, parentheticals,
+  formal connectors) are the same patterns a well-cited AI report uses.
+  `generate_claude.py` now has a "cited research report" genre and a longer
+  length range (up to 2,000 words, was 900) to target this gap, but it hasn't
+  been run yet (no API key was available). One real example isn't enough data
+  to retrain on without just memorising that document; a batch of generated
+  examples in this genre is needed first.
 - **Short texts** (under ~250 words) are less reliable, and under 80 words no
   score is given.
 - **Topic leakage is reduced, not eliminated.** Some top features are subject

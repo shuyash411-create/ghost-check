@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""Real-world sanity check: 20 assignment/essay-style documents, none in training.
+"""Real-world sanity check: 21 assignment/essay-style documents, none in training.
 
   human/  6 UK university assignments (BAWE) + 2 TOEFL essays (ETS), both from
           the held-out test split (never trained on, not used for thresholds),
           and 2 US State of the Union addresses (1965, 1994; never used at all)
-  ai/     10 assignment-style texts written by Claude (a newer model than any in
-          the training data) across subjects, levels and voices
+  ai/     11 assignment-style texts written by Claude (a newer model than any in
+          the training data) across subjects, levels and voices. #11 is a real
+          ~3,100-word cited economics report a user submitted to us as a false
+          negative (scored ~0-6/100); it is anonymised (names, registration
+          number and instructor identity removed) and kept verbatim otherwise.
 
 The BAWE and ETS texts are licensed, so they are read from a Ghostbuster
 checkout (paths in human_from_ghostbuster.txt) instead of being stored here.
