@@ -71,9 +71,15 @@ GENRES = {
     "exam answer": "Answer this exam-style question in essay form: 'Critically evaluate a major debate in {subject}.'",
     "reflective assignment": "Write a reflective assignment on what a student learned while studying {subject}.",
     "lab or project report": "Write a project report section (methods, results, discussion) for a student project on {subject}.",
+    "cited research report": "Write a well-researched, multi-section report on {subject} that reads like a real "
+        "university assignment submitted for grading: named section headings, dense factual/economic or "
+        "institutional content, and a closing reference list citing real-sounding organisations, articles or "
+        "reports with dates (author-date in-text citations or a bulleted reference list).",
 }
 LEVELS = ["high-school", "first-year undergraduate", "final-year undergraduate", "master's"]
-LENGTHS = [250, 400, 600, 900]
+# 1200/2000 were added after a real ~3,100-word cited report was missed at the old 250-900 max
+# (see train/RESULTS.md section 3) - long, factually dense, cited writing was underrepresented.
+LENGTHS = [250, 400, 600, 900, 1200, 2000]
 PERSONAS = [
     "",
     "Write it the way a typical student would submit it.",
@@ -81,6 +87,8 @@ PERSONAS = [
     "Write as a non-native English speaker who writes clearly but not perfectly idiomatically.",
     "Include a few in-text citations in author-date style.",
     "Use a slightly informal academic tone.",
+    "End with a full reference list citing named organisations, reports or articles with dates, "
+        "in the style of a real bibliography.",
 ]
 
 

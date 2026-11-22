@@ -186,12 +186,12 @@
   }
  },
  "sanity": {
-  "documents": 20,
+  "documents": 21,
   "correct": 15,
   "human": 10,
-  "ai": 10,
+  "ai": 11,
   "human_flagged": 0,
-  "ai_missed": 5,
+  "ai_missed": 6,
   "rows": [
    {
     "author": "human",
@@ -311,6 +311,12 @@
     "author": "ai",
     "file": "10_psych_sleep_informal",
     "score": 0.0008219322668142987,
+    "verdict": "No clear AI signs"
+   },
+   {
+    "author": "ai",
+    "file": "11_econ_report_asean",
+    "score": 0.03429756574624796,
     "verdict": "No clear AI signs"
    }
   ]

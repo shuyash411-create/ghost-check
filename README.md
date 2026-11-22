@@ -19,9 +19,10 @@ The model is a TF-IDF + logistic regression classifier trained on about
 
 > **Not 100% accurate, and no detector is.** On documents like its training
 > data it is 99.3% accurate, and about 1% of human documents are wrongly called
-> "Likely AI". It is much weaker on AI text from newer models: in a 20-document
-> real-world check it got **15/20**. None of the 10 human documents was wrongly
-> flagged, but it missed 5 of the 10 AI documents written by a current model.
+> "Likely AI". It is much weaker on AI text from newer models: in a 21-document
+> real-world check it got **15/21**. None of the 10 human documents was wrongly
+> flagged, but it missed 6 of the 11 AI documents written by a current model,
+> including a real cited economics report a user submitted after a false negative.
 > Treat a score as a reason to look closer, never as proof. Full numbers:
 > **[train/RESULTS.md](train/RESULTS.md)**.
 
@@ -103,7 +104,7 @@ statistical cues, not a checklist of "AI words".
 | AI from unseen generators: GPT-4 / Claude-instant | 99% / 100% caught |
 | "Humanised" AI text | 85% caught |
 | AI from unseen small open models: Flan-T5 / BLOOMZ | 37% / 24% caught |
-| **Real-world check: 20 assignment-style PDFs** | **15/20 · FPR 0/10 · FNR 5/10** |
+| **Real-world check: 21 assignment-style PDFs** | **15/21 · FPR 0/10 · FNR 6/11** |
 
 FPR = human text wrongly flagged; FNR = AI text missed. Details, per-source
 tables, version history and caveats are in [train/RESULTS.md](train/RESULTS.md).
@@ -166,8 +167,9 @@ rebuilding it gives an identical dataset.
 
 ## Limitations
 
-- **Weak on current models and on AI text written in a personal, informal or
-  non-native voice.** See [train/RESULTS.md](train/RESULTS.md), section 3.
+- **Weak on current models and on AI text written in a personal, informal,
+  non-native, or long/factual/cited-report voice.** See
+  [train/RESULTS.md](train/RESULTS.md), section 3.
 - **Short texts are unreliable.** Under 80 words gets no score, and under ~250
   words is lower confidence.
 - **English only**, and formal writing only. Chats, emails and social posts
